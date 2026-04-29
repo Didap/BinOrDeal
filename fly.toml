@@ -1,0 +1,34 @@
+# Fly.io app config — deploy with: fly launch --copy-config --no-deploy (once), then fly deploy.
+# Playwright + chromium need ≥1GB RAM, so we start on shared-cpu-1x with 1GB memory.
+
+app = "bin-or-deal"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  # Demo fallback stays ON until all adapters are confirmed healthy in prod.
+  ADAPTER_DEMO_FALLBACK = "true"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/adapter-status?probe=charizard"
+    timeout = "15s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

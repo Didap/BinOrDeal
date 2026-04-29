@@ -1,0 +1,36 @@
+# Local Postgres for Bin or Deal.
+#
+# Mirrors the production schema (Neon) one-to-one so `npm run db:generate`
+# + `npm run db:migrate` produce identical migrations locally and remote.
+#
+# Usage:
+#   docker compose up -d      # start in background
+#   docker compose down       # stop
+#   docker compose down -v    # stop AND drop the volume (nuclear reset)
+#
+# Connection string (matches .env.local):
+#   postgres://binordeal:binordeal@localhost:5432/binordeal
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: binordeal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: binordeal
+      POSTGRES_PASSWORD: binordeal
+      POSTGRES_DB: binordeal
+    ports:
+      # Expose on host :5433 to avoid colliding with a locally-installed
+      # Postgres (e.g. Homebrew postgresql@17 that owns host :5432).
+      - "5433:5432"
+    volumes:
+      - binordeal-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U binordeal -d binordeal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  binordeal-pg:

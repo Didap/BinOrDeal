@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ditto__extract_design",
+      "Bash(mkdir -p \"/Users/w/Bin or Deal/public\")",
+      "Bash(cp \"/Users/w/Downloads/Fist Bump Animation.lottie\" \"/Users/w/Bin or Deal/public/fist-bump.lottie\")",
+      "Bash(lsof -i :3000 echo \"---\")",
+      "Bash(npx next *)",
+      "WebFetch(domain:api.cardmarket.com)",
+      "Bash(docker compose *)",
+      "Bash(node --env-file=.env.local node_modules/.bin/tsx src/index.ts)",
+      "Bash(node --env-file=.env.local ../node_modules/tsx/dist/cli.mjs src/index.ts)",
+      "Bash(../node_modules/tsx/dist/cli.mjs schema-probe.mjs)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(pkill -f \"tsx.*src/index.ts\")",
+      "Bash(cat)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(git ls-remote *)",
+      "Bash(git config *)",
+      "Bash(git init *)"
+    ]
+  }
+}
