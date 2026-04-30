@@ -14,11 +14,14 @@ FROM mcr.microsoft.com/playwright:v1.59.1-jammy AS deps
 
 WORKDIR /app
 
-# Copy only package manifests so dependency install caches across code changes.
+# Some platforms (e.g. Coolify) inject NODE_ENV=production into the build,
+# which silently drops dev deps from `npm ci`. Override locally and pass
+# --include=dev so typescript is present — Next needs it to read tsconfig
+# `paths`, otherwise every `@/*` alias import fails to resolve.
+ENV NODE_ENV=development
+ENV NPM_CONFIG_PRODUCTION=false
 COPY package.json package-lock.json* ./
-# Full install (incl. dev deps): Next reads tsconfig paths via `typescript`,
-# which is a dev dep — omitting it breaks `@/*` alias resolution at build time.
-RUN npm ci
+RUN npm ci --include=dev
 
 FROM mcr.microsoft.com/playwright:v1.59.1-jammy AS builder
 WORKDIR /app
