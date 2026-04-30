@@ -16,7 +16,9 @@ WORKDIR /app
 
 # Copy only package manifests so dependency install caches across code changes.
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+# Full install (incl. dev deps): Next reads tsconfig paths via `typescript`,
+# which is a dev dep — omitting it breaks `@/*` alias resolution at build time.
+RUN npm ci
 
 FROM mcr.microsoft.com/playwright:v1.59.1-jammy AS builder
 WORKDIR /app
