@@ -44,8 +44,17 @@ export const cardmarketAdapter: CatalogAdapter = {
       let prices = cached && cached.expires > Date.now() ? cached.prices : null
       if (!prices) {
         try {
-          prices = await scrapeCardmarketPrice(setSlug, cardSlug)
-          CACHE.set(cacheKey, { prices, expires: Date.now() + CACHE_TTL_MS })
+          // Hard 5s budget for the live scrape. Cardmarket pages occasionally
+          // hit Cloudflare challenges that stall Playwright for tens of seconds;
+          // we'd rather show the curated mock ref than block the streaming
+          // search waiting for the scraped trend.
+          prices = await Promise.race([
+            scrapeCardmarketPrice(setSlug, cardSlug),
+            new Promise<null>((res) => setTimeout(() => res(null), 5_000)),
+          ])
+          if (prices) {
+            CACHE.set(cacheKey, { prices, expires: Date.now() + CACHE_TTL_MS })
+          }
         } catch (e) {
           console.warn("[cardmarket] scrape failed:", e instanceof Error ? e.message : e)
         }

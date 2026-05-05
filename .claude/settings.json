@@ -17,7 +17,18 @@
       "Bash(npx tsx -e ' *)",
       "Bash(git ls-remote *)",
       "Bash(git config *)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(grep -E \"mcp|\\\\.env\" .gitignore)",
+      "Bash(ls -la .env*)",
+      "Bash(grep -i \"COOLIFY\" ~/.zshrc ~/.zshenv ~/.zprofile)",
+      "mcp__coolify__projects",
+      "Bash(zsh -i -c 'echo \"len=${#COOLIFY_KEY_DIDAP}\"')",
+      "Bash(zsh -i -c 'printf %s \"$COOLIFY_KEY_DIDAP\"')",
+      "Bash(DATABASE_URL=\"postgres://binordeal:binordeal@178.104.36.242:54321/binordeal\" npx tsx src/db/migrate.ts)",
+      "Bash(host 178.104.36.242)",
+      "Bash(openssl s_client -servername binordeal.com -connect binordeal.com:443 -verify_return_error)",
+      "Bash(openssl x509 *)"
     ]
   }
 }

@@ -98,3 +98,12 @@ if (typeof process !== "undefined" && !process.listenerCount("beforeExit")) {
     void closeBrowser()
   })
 }
+
+// Pre-warm Chromium at module init so the first search doesn't pay the
+// ~3s cold-start cost of launching the browser. Fire-and-forget — failures
+// are tolerated since the adapter falls back to its own try/catch.
+if (typeof process !== "undefined" && process.env.NEXT_RUNTIME !== "edge") {
+  void getBrowser().catch((e) => {
+    console.warn("[browser] prewarm failed:", e instanceof Error ? e.message : e)
+  })
+}

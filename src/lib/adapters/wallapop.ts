@@ -102,8 +102,11 @@ async function fetchViaBrowser(query: string): Promise<WallapopItem[]> {
 
     const searchUrl = new URL("https://es.wallapop.com/app/search")
     searchUrl.searchParams.set("keywords", query)
+    // We listen for the /search/section XHR response, not the DOM — `commit`
+    // returns as soon as the navigation request commits, letting the SPA fire
+    // the API call without us blocking on full DOM parse / subresources.
     await page.goto(searchUrl.toString(), {
-      waitUntil: "domcontentloaded",
+      waitUntil: "commit",
       timeout: 20_000,
     })
 
