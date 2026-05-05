@@ -2,7 +2,9 @@
   "name": "bin-or-deal",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["backend"],
+  "workspaces": [
+    "backend"
+  ],
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -20,6 +22,7 @@
     "next": "15.1.6",
     "playwright": "^1.59.1",
     "postgres": "^3.4.9",
+    "posthog-js": "^1.372.8",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "tailwind-merge": "2.6.0"

@@ -1,6 +1,7 @@
 "use client"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import posthog from "posthog-js"
 import { cn } from "@/lib/cn"
 import type { Vertical } from "@/lib/types"
 import { VERTICAL_LABELS } from "@/lib/format"
@@ -74,6 +75,13 @@ export function SearchBox({
     if (vertical === "pokemon") {
       if (pokemonSet && pokemonSet !== "any") params.set("set", pokemonSet)
     }
+    posthog.capture("search_submit", {
+      query: trimmed,
+      vertical,
+      ...(vertical === "games" ? { game_kind: gameKind, game_platform: gamePlatform } : {}),
+      ...(vertical === "shoes" ? { shoe_size: shoeSize, shoe_gender: shoeGender } : {}),
+      ...(vertical === "pokemon" ? { pokemon_set: pokemonSet } : {}),
+    })
     router.push(`/search?${params.toString()}`)
   }
 
@@ -160,6 +168,13 @@ export function SearchBox({
               v: "pokemon",
               set: card.setId,
               ref: card.productId,
+            })
+            posthog.capture("search_submit", {
+              query: card.shortName,
+              vertical: "pokemon",
+              pokemon_set: card.setId,
+              ref_product_id: card.productId,
+              source: "autocomplete",
             })
             router.push(`/search?${p.toString()}`)
           }}
