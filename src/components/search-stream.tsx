@@ -4,7 +4,10 @@ import { FilterSidebar } from "@/components/filter-sidebar"
 import { ListingCard } from "@/components/listing-card"
 import { RefMatch } from "@/components/ref-match"
 import { ScoreBadge } from "@/components/score-badge"
-import { cn } from "@/lib/cn"
+import {
+  RefMatchSkeleton,
+  SkeletonStack,
+} from "@/components/skeletons"
 import { PLATFORM_LABELS } from "@/lib/format"
 import type { SearchStreamEvent, StreamedListing } from "@/lib/search"
 import type { CatalogRef, Platform } from "@/lib/types"
@@ -37,33 +40,45 @@ interface State {
   fetchedAt: string | null
   done: boolean
   error: string | null
+  /** Wallclock time when this stream started (component mount). Used to show
+   *  the user how long it took to get the first result vs. completion. */
+  streamStartedAt: number
+  /** Wallclock time when the first `chunk` event landed. */
+  firstChunkAt: number | null
+  /** Wallclock time when the `done` event landed. */
+  doneAt: number | null
 }
 
-const initial: State = {
-  ref: null,
-  refResolved: false,
-  refCandidates: [],
-  started: false,
-  activePlatforms: [],
-  arrived: new Set(),
-  listings: [],
-  tallies: { deal: 0, fair: 0, bin: 0 },
-  fetchedAt: null,
-  done: false,
-  error: null,
+function makeInitial(): State {
+  return {
+    ref: null,
+    refResolved: false,
+    refCandidates: [],
+    started: false,
+    activePlatforms: [],
+    arrived: new Set(),
+    listings: [],
+    tallies: { deal: 0, fair: 0, bin: 0 },
+    fetchedAt: null,
+    done: false,
+    error: null,
+    streamStartedAt: Date.now(),
+    firstChunkAt: null,
+    doneAt: null,
+  }
 }
 
 const FALLBACK_PLATFORMS: Platform[] = ["subito", "vinted", "wallapop", "ebay"]
 
 export function SearchStream({ query, sort, statusStrip }: Props) {
-  const [state, setState] = useState<State>(initial)
+  const [state, setState] = useState<State>(makeInitial)
   // Track the latest query string so we can ignore in-flight chunks from a
   // stale stream when the user changes filters/keyword mid-flight.
   const activeQueryRef = useRef(query)
 
   useEffect(() => {
     activeQueryRef.current = query
-    setState(initial)
+    setState(makeInitial())
 
     const controller = new AbortController()
     const url = `/api/search/stream?${query}`
@@ -109,31 +124,25 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
           <TallyPill tier="deal" count={state.tallies.deal} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
           <TallyPill tier="fair" count={state.tallies.fair} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
           <TallyPill tier="bin" count={state.tallies.bin} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
-          <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-ink-muted">
-            {state.listings.length} annunci
-            {state.done && state.fetchedAt ? (
-              <>
-                {" · "}
-                <span className="normal-case tracking-normal">
-                  fetched {new Date(state.fetchedAt).toLocaleTimeString("it-IT")}
-                </span>
-              </>
-            ) : pendingPlatforms.length > 0 ? (
-              <>
-                {" · "}
-                <span className="normal-case tracking-normal text-deal-deep">
-                  in arrivo da {pendingPlatforms.map((p) => PLATFORM_LABELS[p] ?? p).join(", ")}…
-                </span>
-              </>
+          <div className="ml-auto flex items-center gap-3 font-mono text-[11px] uppercase tracking-widest text-ink-muted">
+            <span>{state.listings.length} annunci</span>
+            {state.done && state.doneAt ? (
+              <span className="normal-case tracking-normal">
+                {state.firstChunkAt
+                  ? `1° in ${formatSeconds(state.firstChunkAt - state.streamStartedAt)} · totale ${formatSeconds(state.doneAt - state.streamStartedAt)}`
+                  : `totale ${formatSeconds(state.doneAt - state.streamStartedAt)}`}
+              </span>
             ) : (
               <>
-                {" · "}
-                <span className="normal-case tracking-normal text-ink-muted">
-                  elaborazione…
+                <ElapsedClock since={state.streamStartedAt} />
+                <span className="normal-case tracking-normal text-deal-deep">
+                  {pendingPlatforms.length > 0
+                    ? `${pendingPlatforms.map((p) => PLATFORM_LABELS[p] ?? p).join(", ")} in arrivo…`
+                    : "elaborazione…"}
                 </span>
               </>
             )}
-          </span>
+          </div>
         </div>
 
         {state.error ? (
@@ -188,6 +197,7 @@ function reduce(prev: State, event: SearchStreamEvent): State {
         listings: merged,
         tallies: event.tallies,
         arrived,
+        firstChunkAt: prev.firstChunkAt ?? Date.now(),
       }
     }
     case "done":
@@ -196,6 +206,7 @@ function reduce(prev: State, event: SearchStreamEvent): State {
         fetchedAt: event.fetchedAt,
         tallies: event.tallies,
         done: true,
+        doneAt: Date.now(),
       }
     case "error":
       return { ...prev, error: event.message, done: true }
@@ -314,104 +325,24 @@ function TallyPill({
   )
 }
 
-// ---- Skeletons -------------------------------------------------------------
-
-function SkeletonStack({ count }: { count: number }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} delayMs={Math.min(i * 60, 480)} />
-      ))}
-    </>
-  )
-}
-
 /**
- * Match the structure of `<ListingCard>` so when a real card slots in, the
- * layout doesn't jump: same border treatment, same thumbnail box, same row
- * heights. Width-randomized bars give a paper-newsprint feel rather than a
- * uniform shimmer wall.
+ * Live clock that ticks once per 100ms during loading. Stops being mounted
+ * once the stream is `done`, so it doesn't keep firing setInterval forever.
  */
-function SkeletonCard({ delayMs = 0 }: { delayMs?: number }) {
+function ElapsedClock({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 100)
+    return () => clearInterval(id)
+  }, [])
   return (
-    <article
-      className={cn(
-        "group relative bg-surface border-2 border-ink border-l-[6px] border-l-line-strong",
-        "overflow-hidden",
-      )}
-      aria-hidden
-    >
-      <div
-        className="flex gap-0 animate-pulse"
-        style={{ animationDelay: `${delayMs}ms` }}
-      >
-        {/* thumbnail block */}
-        <div className="relative shrink-0 w-28 sm:w-32 bg-ink/5 border-r-2 border-ink">
-          <div className="w-full aspect-[4/5] bg-ink/10" />
-          <div className="absolute bottom-0 left-0 right-0 h-[18px] bg-ink/40" />
-        </div>
-
-        {/* body */}
-        <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 space-y-2">
-              <SkeletonBar className="h-4 w-[78%]" />
-              <SkeletonBar className="h-4 w-[52%]" />
-            </div>
-            <SkeletonBar className="h-6 w-16 shrink-0" />
-          </div>
-
-          {/* meta row */}
-          <div className="mt-3 flex items-center gap-2">
-            <SkeletonBar className="h-3 w-12" />
-            <SkeletonBar className="h-3 w-10" />
-            <SkeletonBar className="h-3 w-14" />
-            <SkeletonBar className="h-3 w-10" />
-          </div>
-
-          {/* price + ref row */}
-          <div className="mt-auto pt-4 flex items-end justify-between gap-4">
-            <div className="space-y-2">
-              <SkeletonBar className="h-7 w-28 bg-ink/15" />
-              <SkeletonBar className="h-3 w-24" />
-            </div>
-            <div className="text-right space-y-2">
-              <SkeletonBar className="h-2.5 w-20 ml-auto" />
-              <SkeletonBar className="h-3.5 w-16 ml-auto" />
-            </div>
-          </div>
-
-          {/* action row */}
-          <div className="mt-3 pt-3 border-t border-line flex items-center justify-between">
-            <SkeletonBar className="h-2.5 w-[40%]" />
-            <SkeletonBar className="h-2.5 w-20" />
-          </div>
-        </div>
-      </div>
-    </article>
+    <span className="font-mono tabular text-[11px] text-deal-deep">
+      {formatSeconds(now - since)}
+    </span>
   )
 }
 
-function SkeletonBar({ className }: { className?: string }) {
-  return <div className={cn("bg-ink/10 rounded-[1px]", className)} />
-}
-
-function RefMatchSkeleton() {
-  return (
-    <div className="rule-double pt-5" aria-hidden>
-      <div className="flex items-start justify-between gap-5 flex-wrap animate-pulse">
-        <div className="min-w-0 space-y-2 flex-1">
-          <SkeletonBar className="h-2.5 w-44" />
-          <SkeletonBar className="h-5 w-[60%]" />
-          <div className="pt-2">
-            <SkeletonBar className="h-6 w-40" />
-          </div>
-        </div>
-        <div className="text-right shrink-0 space-y-2">
-          <SkeletonBar className="h-2.5 w-10 ml-auto" />
-          <SkeletonBar className="h-9 w-24 ml-auto bg-ink/15" />
-        </div>
-      </div>
-    </div>
-  )
+function formatSeconds(ms: number): string {
+  if (ms < 0) ms = 0
+  return `${(ms / 1000).toFixed(1)}s`
 }

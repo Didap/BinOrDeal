@@ -1,6 +1,6 @@
 "use client"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import posthog from "posthog-js"
 import { cn } from "@/lib/cn"
 import type { Vertical } from "@/lib/types"
@@ -37,6 +37,7 @@ export function SearchBox({
   suggestions = [],
 }: Props) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [q, setQ] = useState(initialQuery)
   const [vertical, setVertical] = useState<Vertical>(initialVertical)
   const [focused, setFocused] = useState(false)
@@ -82,7 +83,12 @@ export function SearchBox({
       ...(vertical === "shoes" ? { shoe_size: shoeSize, shoe_gender: shoeGender } : {}),
       ...(vertical === "pokemon" ? { pokemon_set: pokemonSet } : {}),
     })
-    router.push(`/search?${params.toString()}`)
+    // useTransition here makes `isPending` true synchronously on click — the
+    // button flips to "Cerco…" while Next fetches the new RSC payload, instead
+    // of looking dead between click and navigation.
+    startTransition(() => {
+      router.push(`/search?${params.toString()}`)
+    })
   }
 
   return (
@@ -148,14 +154,23 @@ export function SearchBox({
 
       <button
         type="submit"
+        disabled={isPending}
         className={cn(
           "bg-deal text-paper font-mono font-bold uppercase tracking-widest",
-          "border-l-2 border-ink hover:bg-deal-deep transition-colors",
+          "border-l-2 border-ink transition-colors",
+          isPending ? "bg-deal-deep cursor-wait" : "hover:bg-deal-deep",
           size === "hero" && "px-7 text-sm",
           size === "compact" && "px-4 text-[11px]",
         )}
       >
-        Bin? Deal?
+        {isPending ? (
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden className="size-1.5 rounded-full bg-paper pulse-dot" />
+            Cerco…
+          </span>
+        ) : (
+          "Bin? Deal?"
+        )}
       </button>
 
       {focused && vertical === "pokemon" && (
