@@ -99,10 +99,13 @@ if (typeof process !== "undefined" && !process.listenerCount("beforeExit")) {
   })
 }
 
-// Pre-warm Chromium at module init so the first search doesn't pay the
-// ~3s cold-start cost of launching the browser. Fire-and-forget — failures
-// are tolerated since the adapter falls back to its own try/catch.
-if (typeof process !== "undefined" && process.env.NEXT_RUNTIME !== "edge") {
+// Pre-warm Chromium ONLY when explicitly requested via /api/warmup. Doing it
+// at module-init was risky: it triggers `await import("playwright")` which on
+// slow container disks (small Coolify VPS) can balloon the first cold request
+// to /search by tens of seconds. With this gate, the only path that ever
+// loads Playwright is an actual Wallapop search call (or a manual warmup
+// ping after deploy), keeping the page render hermetic.
+if (typeof process !== "undefined" && process.env.PREWARM_BROWSER === "1") {
   void getBrowser().catch((e) => {
     console.warn("[browser] prewarm failed:", e instanceof Error ? e.message : e)
   })

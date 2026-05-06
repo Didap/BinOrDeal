@@ -1,21 +1,25 @@
-import { marketplaceAdapters } from "@/lib/adapters"
+import { MARKETPLACE_META } from "@/lib/adapters/meta"
 import { cn } from "@/lib/cn"
 
 /**
  * Compact strip shown above search results listing which marketplaces
  * contributed live data vs. fell back to samples. Honest telemetry.
+ *
+ * Reads the static metadata file rather than the runtime adapter module so
+ * server-rendering this component never transitively imports Playwright /
+ * OAuth code. Critical for /search TTFB on container hosts.
  */
 export function AdapterStatusStrip() {
   const byStatus = {
-    live: marketplaceAdapters.filter((a) => a.status === "live"),
-    stub: marketplaceAdapters.filter((a) => a.status === "stub"),
-    down: marketplaceAdapters.filter((a) => a.status === "down"),
+    live: MARKETPLACE_META.filter((a) => a.status === "live"),
+    stub: MARKETPLACE_META.filter((a) => a.status === "stub"),
+    down: MARKETPLACE_META.filter((a) => a.status === "down"),
   }
 
   return (
     <div className="flex items-center flex-wrap gap-x-5 gap-y-2 bg-surface border-2 border-ink px-4 py-3 font-mono text-[11px] uppercase tracking-widest">
       <span className="text-ink-muted">Sorgenti</span>
-      {marketplaceAdapters.map((a) => (
+      {MARKETPLACE_META.map((a) => (
         <span key={a.platform} className="inline-flex items-center gap-1.5">
           <StatusDot status={a.status} />
           <span className={cn(a.status === "live" ? "text-ink" : "text-ink-muted")}>
@@ -37,7 +41,7 @@ export function AdapterStatusStrip() {
           </span>
         </span>
       ))}
-      {byStatus.live.length < marketplaceAdapters.length && (
+      {byStatus.live.length < MARKETPLACE_META.length && (
         <span className="ml-auto text-[10px] normal-case tracking-normal text-ink-muted max-w-[28ch] leading-snug">
           I risultati marcati <em className="not-italic text-fair">campione</em> sono esempi per la demo.
         </span>
