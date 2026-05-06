@@ -7,16 +7,22 @@ export const runtime = "nodejs" // Wallapop adapter requires Playwright/Node run
 /**
  * GET /api/search/stream?q=...
  *
- * Streams an NDJSON sequence of `SearchStreamEvent` objects (one per line):
- *   {"kind":"ref",...}
- *   {"kind":"chunk","platform":"subito",...}
- *   {"kind":"chunk","platform":"vinted",...}
+ * Streams `SearchStreamEvent` objects as Server-Sent Events:
+ *   data: {"kind":"start",...}\n\n
+ *   data: {"kind":"chunk","platform":"subito",...}\n\n
  *   ...
- *   {"kind":"done",...}
+ *   data: {"kind":"done",...}\n\n
  *
- * Same query parameters as /api/search. Designed for the search page client to
- * paint partial results as adapters resolve, without waiting for the slowest
- * one (Wallapop, ~3-15s).
+ * Why SSE and not plain NDJSON: Coolify uses Traefik as the front proxy by
+ * default, and Traefik buffers `application/x-ndjson` (and other unknown
+ * types) until the response closes — defeating the whole point of streaming.
+ * `text/event-stream` is recognized by every common proxy (Traefik, nginx,
+ * Cloudflare) as a streaming format and forwarded chunk-by-chunk without
+ * buffering. The client uses fetch + ReadableStream to read the SSE
+ * frames; we don't use EventSource because we don't want auto-reconnect.
+ *
+ * Designed for the search page client to paint partial results as adapters
+ * resolve, without waiting for the slowest one (Wallapop, ~3-15s).
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -60,19 +66,45 @@ export async function GET(req: Request) {
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: SearchStreamEvent) => {
-        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"))
+      const sendEvent = (event: SearchStreamEvent) => {
+        // SSE frame: each event is one or more `data:` lines, terminated by
+        // a blank line. We send the whole JSON on a single data line.
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+        )
       }
+
+      // Preamble: a 2KB SSE-comment line forces the response headers + first
+      // bytes through the proxy immediately, so the client's `fetch` resolves
+      // and the reader starts producing chunks. Without this, some proxies
+      // (and even some browser HTTP stacks) wait until ~4KB has accumulated
+      // before delivering the first chunk to userland, masking the streaming.
+      controller.enqueue(
+        encoder.encode(`: ${" ".repeat(2048)}\n\n`),
+      )
+
+      // Heartbeat every 15s — nothing reads it client-side, but it keeps idle
+      // proxies from closing the connection if a search runs longer than the
+      // proxy's read timeout (Coolify/Traefik default = 30s).
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(`: keepalive\n\n`))
+        } catch {
+          /* controller already closed */
+        }
+      }, 15_000)
+
       try {
         for await (const event of runSearchStream(params)) {
-          send(event)
+          sendEvent(event)
         }
       } catch (e) {
-        send({
+        sendEvent({
           kind: "error",
           message: e instanceof Error ? e.message : "unknown",
         })
       } finally {
+        clearInterval(heartbeat)
         controller.close()
       }
     },
@@ -80,10 +112,12 @@ export async function GET(req: Request) {
 
   return new Response(stream, {
     headers: {
-      "content-type": "application/x-ndjson; charset=utf-8",
-      "cache-control": "no-store",
-      // Disable proxy buffering (nginx/coolify) so chunks reach the client
-      // as they're produced instead of being held until the stream closes.
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      // Defense-in-depth: even if some proxies don't recognize event-stream,
+      // the no-buffering hints help nginx (`x-accel-buffering`) and CDNs
+      // (`cdn-cache-control`) keep the response unbuffered.
       "x-accel-buffering": "no",
     },
   })

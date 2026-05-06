@@ -242,48 +242,69 @@ function sortListings(
 }
 
 /**
- * Read an NDJSON stream and invoke `onEvent` for each parsed line.
- * Handles split chunks (a JSON line may straddle two TCP frames) by buffering
- * up to the last newline.
+ * Read a Server-Sent Events stream (text/event-stream) and invoke `onEvent`
+ * for each `data: {...}` frame. We use fetch + ReadableStream rather than
+ * the EventSource API because EventSource auto-reconnects on close — wrong
+ * behavior for a one-shot search whose `done` event closes the stream.
+ *
+ * Frame format we accept: lines of the form `data: <json>` terminated by a
+ * blank line. Comments (`: ...`) and other event types are ignored. The
+ * reader buffers across TCP chunk boundaries.
  */
 async function streamNdjson(
   url: string,
   signal: AbortSignal,
   onEvent: (event: SearchStreamEvent) => void,
 ): Promise<void> {
-  const res = await fetch(url, { signal, headers: { Accept: "application/x-ndjson" } })
+  const res = await fetch(url, {
+    signal,
+    headers: { Accept: "text/event-stream" },
+    // Defensive: avoid fetch's HTTP cache reusing a previous stream.
+    cache: "no-store",
+  })
   if (!res.ok || !res.body) {
     throw new Error(`stream HTTP ${res.status}`)
   }
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
+
+  const flushFrame = (frame: string) => {
+    // An SSE frame is one or more lines; collect contiguous `data:` lines
+    // and concat their payloads (per spec, joined by '\n'). We only emit
+    // when we have a non-empty data payload.
+    const dataLines: string[] = []
+    for (const raw of frame.split("\n")) {
+      const line = raw.replace(/\r$/, "")
+      if (line.startsWith(":")) continue // comment / heartbeat
+      if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).replace(/^\s/, ""))
+      }
+    }
+    if (dataLines.length === 0) return
+    const json = dataLines.join("\n")
+    try {
+      onEvent(JSON.parse(json) as SearchStreamEvent)
+    } catch {
+      // ignore malformed frame — server wraps fatals as {kind:"error"}
+    }
+  }
+
   while (true) {
     const { value, done } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    let newlineIdx = buffer.indexOf("\n")
-    while (newlineIdx >= 0) {
-      const line = buffer.slice(0, newlineIdx).trim()
-      buffer = buffer.slice(newlineIdx + 1)
-      if (line) {
-        try {
-          onEvent(JSON.parse(line) as SearchStreamEvent)
-        } catch {
-          // ignore malformed line — server already wrapped fatal errors as
-          // {kind:"error"} events
-        }
-      }
-      newlineIdx = buffer.indexOf("\n")
+    // Frames are terminated by a blank line (\n\n). Some servers/proxies
+    // may use \r\n\r\n; normalize first.
+    buffer = buffer.replace(/\r\n/g, "\n")
+    let split = buffer.indexOf("\n\n")
+    while (split >= 0) {
+      flushFrame(buffer.slice(0, split))
+      buffer = buffer.slice(split + 2)
+      split = buffer.indexOf("\n\n")
     }
   }
-  if (buffer.trim()) {
-    try {
-      onEvent(JSON.parse(buffer.trim()) as SearchStreamEvent)
-    } catch {
-      /* ignore */
-    }
-  }
+  if (buffer.trim()) flushFrame(buffer)
 }
 
 function TallyPill({
