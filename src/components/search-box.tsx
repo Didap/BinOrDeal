@@ -107,7 +107,19 @@ export function SearchBox({
   return (
     <div className="w-full space-y-2">
     {isPending && <SubmitOverlay query={q.trim()} />}
+    {/*
+      Native form submission is the resilience floor: if the JS bundle
+      hasn't hydrated yet (slow network, slow Coolify cold start), the
+      browser still does GET /search?q=…&v=… on submit. After hydration
+      `go()` calls preventDefault and takes over with router.push + the
+      transition overlay. Vertical-specific refiners (gameKind, set,
+      pokemonSet, exl) live in React state only — the pre-hydration
+      submit falls back to a basic q+v search, which is acceptable since
+      almost no user clicks before JS loads.
+    */}
     <form
+      action="/search"
+      method="get"
       onSubmit={go}
       className={cn(
         "group relative flex w-full items-stretch",
@@ -128,6 +140,7 @@ export function SearchBox({
         </label>
         <select
           id="vertical-select"
+          name="v"
           value={vertical}
           onChange={(e) => setVertical(e.target.value as Vertical)}
           className={cn(
