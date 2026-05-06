@@ -92,20 +92,21 @@ export function SearchBox({
         ? { pokemon_set: pokemonSet, exclude_lotteries: excludeLotteries }
         : {}),
     })
-    // Hard navigation. `router.push` waits for the entire RSC payload before
-    // changing the URL, so on a slow server the click feels frozen for many
-    // seconds. With `window.location.assign`, the browser switches URL
-    // immediately and shows its own loading indicator + tab spinner; the new
-    // /search page then renders its skeleton shell as soon as the server
-    // flushes the first byte (target <100ms). Hard nav is also resilient to
-    // intermediate Coolify slowness — the user sees the navigation happen.
+    // Client-side navigation via Next router. `useTransition` flips
+    // `isPending` synchronously on click, which we use to mount a fullscreen
+    // overlay below — the overlay covers the source page so the user gets
+    // immediate visual feedback even while Next is still fetching the new
+    // RSC payload (which can stall several seconds on a cold container).
+    // When the navigation completes, isPending falls back to false and the
+    // overlay unmounts naturally as the new page renders.
     startTransition(() => {
-      window.location.assign(`/search?${params.toString()}`)
+      router.push(`/search?${params.toString()}`)
     })
   }
 
   return (
     <div className="w-full space-y-2">
+    {isPending && <SubmitOverlay query={q.trim()} />}
     <form
       onSubmit={go}
       className={cn(
@@ -548,6 +549,46 @@ function PokemonAutocomplete({
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * Fullscreen overlay shown while `router.push` is fetching the new RSC
+ * payload — covers the source page so the click never feels dead. As soon
+ * as Next finishes navigating, `isPending` flips back to false and this
+ * unmounts (the new /search page is already painting its own skeleton at
+ * that point, so there's no visual gap).
+ */
+function SubmitOverlay({ query }: { query: string }) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-paper/96 backdrop-blur-[2px] grid place-items-center"
+      role="status"
+      aria-live="polite"
+      aria-label="Carico la ricerca"
+    >
+      <div className="text-center px-6">
+        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-muted">
+          Bin or Deal · live feed
+        </div>
+        <div className="mt-3 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95]">
+          Cerco
+          <span aria-hidden className="inline-flex items-end gap-[3px] ml-3 align-baseline">
+            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "120ms" }} />
+            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "240ms" }} />
+          </span>
+        </div>
+        {query && (
+          <div className="mt-4 display italic text-xl text-ink-muted">
+            “{query}”
+          </div>
+        )}
+        <div className="mt-6 font-mono text-[11px] uppercase tracking-widest text-ink-muted">
+          Fan-out su 4 marketplace in parallelo…
+        </div>
+      </div>
     </div>
   )
 }
