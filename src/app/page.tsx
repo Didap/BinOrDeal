@@ -86,14 +86,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* decorative huge ? */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-24 -right-10 display italic text-[28rem] leading-none font-black text-ink/[0.03] select-none"
-            style={{ fontVariationSettings: '"SOFT" 100, "opsz" 144' }}
-          >
-            ?
-          </div>
         </section>
 
         {/* HOW IT WORKS */}
