@@ -37,6 +37,9 @@ export default async function SearchPage({ searchParams }: Props) {
   const shoeSize = sp.size ?? undefined
   const shoeGender = (sp.gender as "uomo" | "donna" | "unisex" | undefined) ?? undefined
   const pokemonSet = sp.set ?? undefined
+  // `exl=0` means user opted into seeing lotteries (flagged). Anything else
+  // (including missing) keeps the default-on exclusion.
+  const excludeLotteries = sp.exl !== "0"
 
   // Forward exactly the params we know about to the streaming endpoint —
   // skip empty ones so the URL stays stable for caching/dedupe in the client.
@@ -85,6 +88,7 @@ export default async function SearchPage({ searchParams }: Props) {
             initialShoeSize={shoeSize}
             initialShoeGender={shoeGender}
             initialPokemonSet={pokemonSet}
+            initialExcludeLotteries={excludeLotteries}
             size="compact"
           />
         </div>

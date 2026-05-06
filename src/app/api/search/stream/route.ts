@@ -61,6 +61,9 @@ export async function GET(req: Request) {
       (searchParams.get("gender") as "uomo" | "donna" | "unisex" | null) ?? undefined,
     pokemonSet: searchParams.get("set") ?? undefined,
     refOverride: searchParams.get("ref") ?? undefined,
+    // `exl=0` opts the user *into* seeing pokémon lotteries (flagged, not
+    // dropped). Any other value or missing param keeps the default (drop).
+    excludeLotteries: searchParams.get("exl") !== "0",
   }
 
   const encoder = new TextEncoder()

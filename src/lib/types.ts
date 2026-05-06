@@ -28,6 +28,9 @@ export interface Score {
   refSource: RefSource
   /** Human-readable note on why this score (e.g. "near-mint condition"). */
   note?: string
+  /** Discriminator for "unknown"-tier listings — lets the UI render the
+   *  right chip without re-deriving the cause. */
+  flag?: "placeholder" | "too-cheap" | "lottery"
 }
 
 export type Provenance = "live" | "fallback"
@@ -95,6 +98,11 @@ export interface SearchParams {
   /** Override: force a specific catalog productId as the reference
    *  (when the auto-match picked the wrong product). */
   refOverride?: string
+  /** Pokémon vertical: drop listings that look like raffles / mystery boxes
+   *  (lotteria, lottery, mistery box, sorteggio, …). When false, lottery-
+   *  looking listings are kept but flagged. Default semantics is "true"
+   *  for pokemon if not explicitly set; ignored for other verticals. */
+  excludeLotteries?: boolean
 }
 
 export interface SearchResult {

@@ -19,6 +19,9 @@ interface Props {
   initialShoeSize?: string
   initialShoeGender?: ShoeGender
   initialPokemonSet?: string
+  /** When false, lottery / mystery-box pokémon listings are kept in the
+   *  results (and flagged) instead of dropped. Default: true (drop). */
+  initialExcludeLotteries?: boolean
   size?: "hero" | "compact"
   placeholder?: string
   suggestions?: string[]
@@ -32,6 +35,7 @@ export function SearchBox({
   initialShoeSize,
   initialShoeGender,
   initialPokemonSet,
+  initialExcludeLotteries = true,
   size = "hero",
   placeholder,
   suggestions = [],
@@ -46,6 +50,7 @@ export function SearchBox({
   const [shoeSize, setShoeSize] = useState<string>(initialShoeSize ?? "any")
   const [shoeGender, setShoeGender] = useState<ShoeGender | "any">(initialShoeGender ?? "any")
   const [pokemonSet, setPokemonSet] = useState<string>(initialPokemonSet ?? "any")
+  const [excludeLotteries, setExcludeLotteries] = useState(initialExcludeLotteries)
 
   const defaultPlaceholder =
     vertical === "pokemon"
@@ -75,19 +80,27 @@ export function SearchBox({
     }
     if (vertical === "pokemon") {
       if (pokemonSet && pokemonSet !== "any") params.set("set", pokemonSet)
+      // Default = exclude lotteries; only carry the param when user opted in.
+      if (!excludeLotteries) params.set("exl", "0")
     }
     posthog.capture("search_submit", {
       query: trimmed,
       vertical,
       ...(vertical === "games" ? { game_kind: gameKind, game_platform: gamePlatform } : {}),
       ...(vertical === "shoes" ? { shoe_size: shoeSize, shoe_gender: shoeGender } : {}),
-      ...(vertical === "pokemon" ? { pokemon_set: pokemonSet } : {}),
+      ...(vertical === "pokemon"
+        ? { pokemon_set: pokemonSet, exclude_lotteries: excludeLotteries }
+        : {}),
     })
-    // useTransition here makes `isPending` true synchronously on click — the
-    // button flips to "Cerco…" while Next fetches the new RSC payload, instead
-    // of looking dead between click and navigation.
+    // Hard navigation. `router.push` waits for the entire RSC payload before
+    // changing the URL, so on a slow server the click feels frozen for many
+    // seconds. With `window.location.assign`, the browser switches URL
+    // immediately and shows its own loading indicator + tab spinner; the new
+    // /search page then renders its skeleton shell as soon as the server
+    // flushes the first byte (target <100ms). Hard nav is also resilient to
+    // intermediate Coolify slowness — the user sees the navigation happen.
     startTransition(() => {
-      router.push(`/search?${params.toString()}`)
+      window.location.assign(`/search?${params.toString()}`)
     })
   }
 
@@ -244,6 +257,8 @@ export function SearchBox({
       <PokemonRefiner
         pokemonSet={pokemonSet}
         onPokemonSetChange={setPokemonSet}
+        excludeLotteries={excludeLotteries}
+        onExcludeLotteriesChange={setExcludeLotteries}
         size={size}
       />
     )}
@@ -401,10 +416,14 @@ function ShoesRefiner({
 function PokemonRefiner({
   pokemonSet,
   onPokemonSetChange,
+  excludeLotteries,
+  onExcludeLotteriesChange,
   size,
 }: {
   pokemonSet: string
   onPokemonSetChange: (s: string) => void
+  excludeLotteries: boolean
+  onExcludeLotteriesChange: (b: boolean) => void
   size: "hero" | "compact"
 }) {
   const grouped = POKEMON_SETS.reduce(
@@ -444,6 +463,25 @@ function PokemonRefiner({
           </optgroup>
         ))}
       </select>
+
+      {/* Lottery exclusion — Pokémon-only. The marketplaces are full of raffle
+          listings whose displayed price (€1–€5) is the ticket cost rather than
+          the card itself; left in, they pollute results and get scored as
+          enormous fake "deals". Default ON. */}
+      <label
+        className={cn(
+          "inline-flex items-center gap-2 select-none cursor-pointer font-mono text-[11px] uppercase tracking-widest transition-opacity",
+          excludeLotteries ? "text-ink" : "text-ink-muted opacity-80",
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={excludeLotteries}
+          onChange={(e) => onExcludeLotteriesChange(e.target.checked)}
+          className="size-3.5 accent-bin border-2 border-ink cursor-pointer"
+        />
+        Escludi lotterie
+      </label>
 
       <span className="ml-auto font-mono text-[10px] normal-case text-ink-muted max-w-[40ch] text-right leading-tight">
         il set viene aggiunto alla keyword — ref Cardmarket filtrato per set

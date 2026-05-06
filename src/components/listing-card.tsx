@@ -27,12 +27,16 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
   const platformLabel = PLATFORM_LABELS[listing.platform] ?? listing.platform
   const effectivePrice =
     listing.priceCents + (listing.shippingCents ?? 0)
-  // "unknown" tier covers two distinct cases; only the placeholder case
-  // should hide the price (that price is fictitious). The too-good-to-be-true
-  // case has a real price — we keep it visible but the score badge still
-  // signals doubt.
+  // "unknown" tier covers three distinct cases via `score.flag`:
+  //   - "lottery"     → raffle / mystery box (pokémon only): the displayed
+  //                     price is the ticket cost. Show a distinct red chip.
+  //   - "placeholder" → seller listed €0/€1 as dummy. Show "(?)" italic mark.
+  //   - "too-cheap"   → real price but suspiciously low; keep price visible,
+  //                     score badge already signals doubt.
+  // Cards rendered in non-pokemon verticals will never carry "lottery".
+  const isLottery = score.flag === "lottery"
   const priceIsPlaceholder =
-    score.tier === "unknown" && listing.priceCents <= 100
+    !isLottery && score.tier === "unknown" && listing.priceCents <= 100
 
   return (
     <article
@@ -117,7 +121,15 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
           {/* price row */}
           <div className="mt-auto pt-4 flex items-end justify-between gap-4">
             <div>
-              {priceIsPlaceholder ? (
+              {isLottery ? (
+                <div
+                  className="inline-flex items-center gap-2 bg-bin/15 border-2 border-bin text-bin px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-widest font-bold"
+                  title="Lotteria — il prezzo è il costo del ticket, non della carta"
+                >
+                  <span aria-hidden>⚠</span>
+                  prezzo fake · lotteria
+                </div>
+              ) : priceIsPlaceholder ? (
                 <div
                   className="display italic text-2xl sm:text-3xl font-black text-ink-muted leading-none"
                   style={{ fontVariationSettings: '"SOFT" 100, "opsz" 144' }}
@@ -130,7 +142,11 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
                   {formatPrice(listing.priceCents, listing.currency)}
                 </div>
               )}
-              {priceIsPlaceholder ? (
+              {isLottery ? (
+                <div className="mt-1 font-mono text-[11px] text-ink-muted max-w-[34ch] leading-snug">
+                  l'annuncio è un'estrazione: clicca per le condizioni
+                </div>
+              ) : priceIsPlaceholder ? (
                 <div className="mt-1 font-mono text-[11px] text-ink-muted max-w-[32ch] leading-snug">
                   prezzo non indicato dal venditore — clicca per vedere
                 </div>

@@ -4,6 +4,7 @@ import { allCatalogEntries, resolveCatalogById } from "@/lib/mock/catalog"
 import { refineGamesQuery, titleIsConsoleHardware } from "@/lib/games"
 import { refineShoesQuery, titleIsShoe } from "@/lib/shoes"
 import { refinePokemonQuery } from "@/lib/pokemon"
+import { isPokemonLottery } from "@/lib/pokemon-lottery"
 import {
   RELEVANCE_THRESHOLD,
   combinedRank,
@@ -53,7 +54,7 @@ export async function runSearch(params: SearchParams): Promise<SearchResult> {
     ref?.refPriceCents ?? heuristicRef(filtered.map((l) => l.priceCents))
   const effectiveSource = ref?.refSource ?? "heuristic"
 
-  const scored = scoreAndRetag(filtered, effectiveRef, effectiveSource)
+  const scored = scoreAndRetag(filtered, effectiveRef, effectiveSource, params.vertical)
   const finalListings = applyFiltersAndSort(scored, params, relevanceById)
 
   return {
@@ -225,7 +226,7 @@ export async function* runSearchStream(
     const effectiveRef = resolvedRef?.refPriceCents ?? heuristicRef(runningPrices)
     const effectiveSource = resolvedRef?.refSource ?? "heuristic"
 
-    const scored = scoreAndRetag(relevant, effectiveRef, effectiveSource)
+    const scored = scoreAndRetag(relevant, effectiveRef, effectiveSource, params.vertical)
     const filteredScored = applyUserFilters(scored, params)
     const ranked: StreamedListing[] = filteredScored.map((l) => ({
       ...l,
@@ -323,6 +324,14 @@ function applyVerticalFilters(listings: Listing[], params: SearchParams): Listin
   if (params.vertical === "shoes") {
     out = out.filter((l) => titleIsShoe(l.title))
   }
+  // Pokémon: drop raffles / mystery boxes by default. The price on those is
+  // the ticket cost, not the card cost — they would otherwise score as huge
+  // fake deals against the catalog ref. The user can opt back in by
+  // unchecking "Escludi lotterie" in the search box (clears `excludeLotteries`,
+  // which we then carry as `false` and only flag instead of drop).
+  if (params.vertical === "pokemon" && params.excludeLotteries !== false) {
+    out = out.filter((l) => !isPokemonLottery(l.title))
+  }
   return out
 }
 
@@ -346,18 +355,37 @@ function applyRelevance(
 
 /**
  * Score every listing and re-tag suspicious results to the "unknown" tier:
- *   1. Placeholder prices: seller listed €0 / €1 as a dummy.
- *   2. "Too good to be true": delta > 30% below market — usually item mismatch
+ *   1. Lottery / mystery-box (pokémon only): the price shown is the ticket
+ *      cost, not the card. Tag with `flag: "lottery"` so the UI shows a
+ *      distinct chip. Only reaches here when the user opted to KEEP lotteries
+ *      in the results (default behaviour drops them upstream).
+ *   2. Placeholder prices: seller listed €0 / €1 as a dummy. `flag: "placeholder"`.
+ *   3. "Too good to be true": delta > 30% below market — usually item mismatch
  *      (keychain, accessory, wrong SKU, lot of unrelated items) rather than a
- *      real steal.
+ *      real steal. `flag: "too-cheap"`.
  */
 function scoreAndRetag(
   listings: Listing[],
   effectiveRef: number,
   effectiveSource: import("@/lib/types").RefSource,
+  vertical: import("@/lib/types").Vertical,
 ): ScoredListing[] {
   return listings.map((l) => {
     const score = scoreListing(l, effectiveRef, effectiveSource)
+    if (vertical === "pokemon" && isPokemonLottery(l.title)) {
+      return {
+        ...l,
+        score: {
+          tier: "unknown" as const,
+          delta: 0,
+          percent: 0,
+          ref: effectiveRef,
+          refSource: effectiveSource,
+          flag: "lottery" as const,
+          note: "lotteria — il prezzo è del ticket, non della carta",
+        },
+      }
+    }
     const placeholder =
       l.priceCents <= 0 ||
       (effectiveRef > 0 && l.priceCents <= 100 && effectiveRef - l.priceCents > 500)
@@ -370,6 +398,7 @@ function scoreAndRetag(
           percent: 0,
           ref: effectiveRef,
           refSource: effectiveSource,
+          flag: "placeholder" as const,
           note: "prezzo non indicato dal venditore",
         },
       }
@@ -380,6 +409,7 @@ function scoreAndRetag(
         score: {
           ...score,
           tier: "unknown" as const,
+          flag: "too-cheap" as const,
           note: "troppo economico rispetto al riferimento — verifica l'annuncio",
         },
       }

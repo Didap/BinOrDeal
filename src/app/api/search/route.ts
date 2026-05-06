@@ -26,6 +26,8 @@ export async function GET(req: Request) {
   const shoeGender = (searchParams.get("gender") as "uomo" | "donna" | "unisex" | null) ?? undefined
   const pokemonSet = searchParams.get("set") ?? undefined
   const refOverride = searchParams.get("ref") ?? undefined
+  // `exl=0` opts into seeing pokémon lotteries (flagged); default is drop.
+  const excludeLotteries = searchParams.get("exl") !== "0"
 
   try {
     const result = await runSearch({
@@ -42,6 +44,7 @@ export async function GET(req: Request) {
       shoeGender,
       pokemonSet,
       refOverride,
+      excludeLotteries,
     })
     return NextResponse.json(result, {
       headers: {
