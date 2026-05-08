@@ -45,6 +45,37 @@ interface WallapopSection {
   data?: { section?: { items?: WallapopItem[] } }
 }
 
+interface WallapopGraphQLSearch {
+  data?: {
+    search?: { items?: WallapopItem[] }
+    searchItems?: { items?: WallapopItem[] }
+  }
+}
+
+type WallapopAnyResponse = WallapopSection | WallapopGraphQLSearch
+
+function isSectionResponse(data: unknown): data is WallapopSection {
+  if (!data || typeof data !== "object") return false
+  const section = (data as WallapopSection).data?.section
+  return !!section && Array.isArray(section.items)
+}
+
+function isGraphQLSearch(data: unknown): data is WallapopGraphQLSearch {
+  if (!data || typeof data !== "object") return false
+  const inner = (data as WallapopGraphQLSearch).data
+  if (!inner) return false
+  const items = inner.search?.items ?? inner.searchItems?.items
+  return Array.isArray(items)
+}
+
+function normalizeSection(data: WallapopAnyResponse): WallapopItem[] {
+  if (isSectionResponse(data)) {
+    return data.data?.section?.items ?? []
+  }
+  const inner = (data as WallapopGraphQLSearch).data
+  return inner?.search?.items ?? inner?.searchItems?.items ?? []
+}
+
 export const wallapopAdapter: MarketplaceAdapter = {
   platform: "wallapop",
   label: "Wallapop",
