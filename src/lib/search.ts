@@ -111,16 +111,20 @@ export type SearchStreamEvent =
       /** total accumulated listing count after this chunk */
       total: number
     }
-  | {
-      kind: "done"
-      fetchedAt: string
-      tallies: { deal: number; fair: number; bin: number }
-      total: number
-    }
-  | {
-      kind: "error"
-      message: string
-    }
+    | {
+        kind: "adapter_done"
+        platform: Platform
+      }
+    | {
+        kind: "done"
+        fetchedAt: string
+        tallies: { deal: number; fair: number; bin: number }
+        total: number
+      }
+    | {
+        kind: "error"
+        message: string
+      }
 
 /**
  * Stream search results as each adapter resolves, instead of awaiting the
@@ -138,43 +142,54 @@ export type SearchStreamEvent =
  * the heuristic was already approximate, and the client can re-rank on each
  * chunk anyway.
  */
+// In-memory results cache to mitigate Playwright/API latency on popular queries.
+// TTL is 15 minutes. Size capped at 50 queries.
+const searchCache = new Map<string, { events: SearchStreamEvent[]; expires: number }>()
+const CACHE_TTL_MS = 15 * 60 * 1000
+const MAX_CACHE_SIZE = 50
+
 export async function* runSearchStream(
   params: SearchParams,
 ): AsyncGenerator<SearchStreamEvent> {
+  const cacheKey = JSON.stringify(params)
+  const cached = searchCache.get(cacheKey)
+  if (cached && cached.expires > Date.now()) {
+    for (const event of cached.events) yield event
+    return
+  }
+
+  const events: SearchStreamEvent[] = []
+  function emit(e: SearchStreamEvent) {
+    events.push(e)
+    return e
+  }
+
   const refCandidates = findCandidates(params)
   const marketplaceQuery = buildMarketplaceQuery(params)
   const adapters = activeAdapters(params)
 
-  // Kick off ref lookup AND all adapters in parallel — the ref lookup can
-  // be slow (cardmarket scrape via Playwright sometimes >5s), so we don't
-  // gate the marketplace fan-out on it.
+  yield emit({
+    kind: "start",
+    query: params.q,
+    vertical: params.vertical,
+    activePlatforms: adapters.map((a) => a.platform),
+    refCandidates: refCandidates.map((c) => ({ ...c })),
+  })
+
+  // Start ref lookup immediately.
   const refPromise = resolveRef(params).catch((e) => {
     console.warn("[search] ref lookup failed:", e instanceof Error ? e.message : e)
     return null
   })
 
+  // Start all adapters in parallel.
   const adapterPromises = adapters.map((a, idx) =>
-    a
-      .search({ q: marketplaceQuery, vertical: params.vertical })
-      .then(
-        (listings) => ({ idx, platform: a.platform, listings }),
-        () => ({ idx, platform: a.platform, listings: [] as Listing[] }),
-      ),
+    a.search({ q: marketplaceQuery, vertical: params.vertical }).then(
+      (listings) => ({ idx, platform: a.platform, listings }),
+      () => ({ idx, platform: a.platform, listings: [] as Listing[] }),
+    ),
   )
 
-  // `start` lets the client paint skeletons sized to the actual fan-out
-  // (n=activePlatforms.length) while the slow work runs in the background.
-  yield {
-    kind: "start",
-    query: params.q,
-    vertical: params.vertical,
-    activePlatforms: adapters.map((a) => a.platform),
-    refCandidates,
-  }
-
-  // Tag the ref promise so it can join the same race as the adapter promises.
-  // If ref resolves first, we yield a ref-update; if adapters resolve first,
-  // we score them with the heuristic and re-emit the ref later.
   type Settled =
     | { kind: "ref"; ref: CatalogRef | null }
     | { kind: "adapter"; idx: number; platform: Platform; listings: Listing[] }
@@ -184,19 +199,15 @@ export async function* runSearchStream(
     p.then((s) => ({ kind: "adapter", ...s })),
   )
 
-  const tallies = { deal: 0, fair: 0, bin: 0 }
-  let total = 0
-  let resolvedRef: CatalogRef | null = null
-  let refResolved = false
-  // Running price pool used when there is no catalog ref yet.
-  const runningPrices: number[] = []
-
-  // Race ref against adapters. Track each pending promise so we can drop the
-  // winner from the pool after each Promise.race.
   const pending = new Set<Promise<Settled>>([taggedRef, ...taggedAdapters])
-  // For removal, keep a parallel index → promise map.
   const adapterByIdx = new Map<number, Promise<Settled>>()
   taggedAdapters.forEach((p, i) => adapterByIdx.set(i, p))
+
+  let resolvedRef: CatalogRef | null = null
+  let refResolved = false
+  const runningPrices: number[] = []
+  const allListings: ScoredListing[] = []
+  const tallies = { deal: 0, fair: 0, bin: 0, unknown: 0 }
 
   while (pending.size > 0) {
     const settled = await Promise.race(pending)
@@ -205,7 +216,7 @@ export async function* runSearchStream(
       pending.delete(taggedRef)
       resolvedRef = settled.ref
       refResolved = true
-      yield { kind: "ref", ref: settled.ref }
+      yield emit({ kind: "ref", ref: settled.ref })
       continue
     }
 
@@ -216,10 +227,6 @@ export async function* runSearchStream(
     const filtered = applyVerticalFilters(settled.listings, params)
     const { listings: relevant, relevanceById } = applyRelevance(filtered, params.q)
 
-    // Score with the best ref we have right now: catalog ref if it already
-    // resolved, otherwise running heuristic. If ref arrives later, the
-    // already-emitted chunks keep their heuristic scores — same behavior as
-    // the non-streaming runSearch when no catalog match exists.
     if (!resolvedRef) {
       for (const l of relevant) runningPrices.push(l.priceCents)
     }
@@ -228,38 +235,47 @@ export async function* runSearchStream(
 
     const scored = scoreAndRetag(relevant, effectiveRef, effectiveSource, params.vertical)
     const filteredScored = applyUserFilters(scored, params)
-    const ranked: StreamedListing[] = filteredScored.map((l) => ({
-      ...l,
-      rank: combinedRank(relevanceById.get(l.id) ?? 1, l.score.delta),
-    }))
 
-    for (const l of ranked) {
-      if (l.score.tier === "deal" || l.score.tier === "fair" || l.score.tier === "bin") {
-        tallies[l.score.tier] += 1
+    const chunkListings: StreamedListing[] = []
+    for (const s of filteredScored) {
+      const l: StreamedListing = {
+        ...s,
+        rank: combinedRank(relevanceById.get(s.id) ?? 1, s.score.delta),
       }
+      allListings.push(l)
+      chunkListings.push(l)
+      const prev = tallies[s.score.tier as keyof typeof tallies] ?? 0
+      tallies[s.score.tier as keyof typeof tallies] = prev + 1
     }
-    total += ranked.length
 
-    yield {
+    yield emit({
       kind: "chunk",
       platform: settled.platform,
-      listings: ranked,
+      listings: chunkListings,
       tallies: { ...tallies },
-      total,
-    }
+      total: allListings.length,
+    })
+
+    yield emit({ kind: "adapter_done", platform: settled.platform })
   }
 
-  // Defensive: if the ref promise somehow never resolved (shouldn't happen
-  // given .catch() above), surface the null so the client stops "loading…".
   if (!refResolved) {
-    yield { kind: "ref", ref: null }
+    yield emit({ kind: "ref", ref: null })
   }
-  yield {
+
+  yield emit({
     kind: "done",
     fetchedAt: new Date().toISOString(),
     tallies,
-    total,
+    total: allListings.length,
+  } as any)
+
+  // Save to cache
+  if (searchCache.size >= MAX_CACHE_SIZE) {
+    const first = searchCache.keys().next().value
+    if (first) searchCache.delete(first)
   }
+  searchCache.set(cacheKey, { events, expires: Date.now() + CACHE_TTL_MS })
 }
 
 // ---- Shared helpers ---------------------------------------------------------
@@ -315,22 +331,11 @@ function activeAdapters(params: SearchParams) {
  */
 function applyVerticalFilters(listings: Listing[], params: SearchParams): Listing[] {
   let out = listings
-  // When the user explicitly asked for a console (not a game), drop any
-  // listing whose title matches a game franchise pattern.
   if (params.vertical === "games" && params.gameKind === "console") {
     out = out.filter((l) => titleIsConsoleHardware(l.title, params.q))
   }
-  // Shoes: title must signal "shoe" and not match the apparel blocklist.
   if (params.vertical === "shoes") {
     out = out.filter((l) => titleIsShoe(l.title))
-  }
-  // Pokémon: drop raffles / mystery boxes by default. The price on those is
-  // the ticket cost, not the card cost — they would otherwise score as huge
-  // fake deals against the catalog ref. The user can opt back in by
-  // unchecking "Escludi lotterie" in the search box (clears `excludeLotteries`,
-  // which we then carry as `false` and only flag instead of drop).
-  if (params.vertical === "pokemon" && params.excludeLotteries !== false) {
-    out = out.filter((l) => !isPokemonLottery(l.title))
   }
   return out
 }
@@ -423,10 +428,15 @@ function applyUserFilters(
   params: SearchParams,
 ): ScoredListing[] {
   let out = scored
-  // For kind=console: drop "unknown" tier (overwhelmingly games or accessories
-  // whose titles happened to include the console keyword).
   if (params.vertical === "games" && params.gameKind === "console") {
     out = out.filter((l) => l.score.tier !== "unknown")
+  }
+  if (params.vertical === "pokemon") {
+    // Drop lotteries by default unless explicitly requested (exl=0).
+    const excludeLotteries = params.excludeLotteries !== false
+    if (excludeLotteries) {
+      out = out.filter((l) => l.score.flag !== "lottery")
+    }
   }
   if (params.minPriceCents != null) {
     out = out.filter((l) => l.priceCents >= params.minPriceCents!)

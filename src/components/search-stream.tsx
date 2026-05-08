@@ -200,6 +200,11 @@ function reduce(prev: State, event: SearchStreamEvent): State {
         firstChunkAt: prev.firstChunkAt ?? Date.now(),
       }
     }
+    case "adapter_done": {
+      const arrived = new Set(prev.arrived)
+      arrived.add(event.platform)
+      return { ...prev, arrived }
+    }
     case "done":
       return {
         ...prev,

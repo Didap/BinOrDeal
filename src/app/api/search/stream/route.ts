@@ -82,8 +82,9 @@ export async function GET(req: Request) {
       // and the reader starts producing chunks. Without this, some proxies
       // (and even some browser HTTP stacks) wait until ~4KB has accumulated
       // before delivering the first chunk to userland, masking the streaming.
+      // 4KB padding to force-flush initial buffer in some proxies (e.g. Traefik)
       controller.enqueue(
-        encoder.encode(`: ${" ".repeat(2048)}\n\n`),
+        encoder.encode(`: ${" ".repeat(4096)}\n\n`),
       )
 
       // Heartbeat every 15s — nothing reads it client-side, but it keeps idle
@@ -101,14 +102,19 @@ export async function GET(req: Request) {
         for await (const event of runSearchStream(params)) {
           sendEvent(event)
         }
+        clearInterval(heartbeat)
+        controller.close()
       } catch (e) {
+        clearInterval(heartbeat)
         sendEvent({
           kind: "error",
           message: e instanceof Error ? e.message : "unknown",
         })
-      } finally {
-        clearInterval(heartbeat)
-        controller.close()
+        try {
+          controller.close()
+        } catch {
+          /* already closed */
+        }
       }
     },
   })

@@ -78,44 +78,48 @@ async function fetchViaBrowser(query: string): Promise<WallapopItem[]> {
   const page = await context.newPage()
 
   try {
-    let resolved: ((v: WallapopItem[]) => void) | null = null
-    let rejected: ((e: Error) => void) | null = null
-    const sectionResponsePromise = new Promise<WallapopItem[]>((res, rej) => {
-      resolved = res
-      rejected = rej
-    })
-
-    page.on("response", async (r) => {
-      const url = r.url()
-      if (url.includes("/api/v3/search/section") && r.status() === 200 && resolved) {
-        try {
-          const body = (await r.json()) as WallapopSection
-          const items = body.data?.section?.items ?? []
-          resolved(items)
-          resolved = null
-        } catch (e) {
-          rejected?.(e instanceof Error ? e : new Error(String(e)))
-          rejected = null
-        }
-      }
-    })
-
-    const searchUrl = new URL("https://es.wallapop.com/app/search")
+    const searchUrl = new URL("https://it.wallapop.com/app/search")
     searchUrl.searchParams.set("keywords", query)
-    // We listen for the /search/section XHR response, not the DOM — `commit`
-    // returns as soon as the navigation request commits, letting the SPA fire
-    // the API call without us blocking on full DOM parse / subresources.
-    await page.goto(searchUrl.toString(), {
-      waitUntil: "commit",
-      timeout: 20_000,
+
+    const sectionPromise = new Promise<WallapopItem[]>((resolve) => {
+      page.on("response", async (res) => {
+        const url = res.url()
+        // Wallapop searches hit either a GraphQL endpoint or the section API.
+        if (url.includes("/api/v1/search/section") || url.includes("/graphql") || url.includes("/api/v3/search/section")) {
+          const ct = res.headers()["content-type"] ?? ""
+          if (!ct.includes("json")) return
+
+          try {
+            const data = await res.json()
+            if (data && (isSectionResponse(data) || isGraphQLSearch(data))) {
+              resolve(normalizeSection(data))
+            }
+          } catch {
+            // ignore malformed JSON or other API calls
+          }
+        }
+      })
     })
 
-    const timeoutPromise = new Promise<WallapopItem[]>((_, rej) =>
-      setTimeout(() => rej(new Error("wallapop: section response timeout")), 15_000),
-    )
+    try {
+      await page.goto(searchUrl.toString(), {
+        waitUntil: "commit",
+        timeout: 20_000,
+      })
+    } catch {
+      // ignore goto timeout/failures; we rely on the XHR listener
+    }
 
-    return await Promise.race([sectionResponsePromise, timeoutPromise])
+    const items = await Promise.race([
+      sectionPromise,
+      new Promise<WallapopItem[]>((_, rej) =>
+        setTimeout(() => rej(new Error("wallapop: timeout")), 15_000),
+      ),
+    ])
+
+    return items
   } finally {
+    page.removeAllListeners("response")
     await page.close().catch(() => {})
     await context.close().catch(() => {})
   }
