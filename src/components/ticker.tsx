@@ -27,9 +27,10 @@ export function DealTicker() {
       className="border-y-2 border-ink bg-ink/[0.04] overflow-hidden select-none"
     >
       <div className="flex items-center">
-        <div className="shrink-0 bg-ink text-paper px-4 py-2 font-mono text-[10px] uppercase tracking-[0.3em] flex items-center gap-2">
+        <div className="shrink-0 bg-ink text-paper px-3 sm:px-4 py-2 font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-deal pulse-dot" />
-          Live feed
+          <span className="hidden xs:inline">Live feed</span>
+          <span className="xs:hidden">Live</span>
         </div>
         <div className="flex-1 overflow-hidden py-2">
           <div className="ticker-track flex gap-10 whitespace-nowrap will-change-transform">

@@ -109,6 +109,57 @@ export const pokemonPrices = pgTable(
   ],
 )
 
+/**
+ * Users — managed via Clerk. We store a shadow copy of the profile
+ * to handle local permissions and search quotas without hitting
+ * Clerk's API on every request.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(), // clerk user id
+    email: text("email").notNull(),
+    tier: text("tier").notNull().default("free"), // "free" | "pro"
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  }
+)
+
+/**
+ * Search logs — audit trail of every search submitted.
+ * Used for:
+ *   1. Quota enforcement (X searches per day/session)
+ *   2. Analytics (what are users looking for?)
+ *   3. Abuse detection
+ */
+export const searchLogs = pgTable(
+  "search_logs",
+  {
+    id: text("id").primaryKey(), // uuid
+    userId: text("user_id"), // null for anonymous searches
+    sessionId: text("session_id").notNull(), // for anonymous quota tracking
+    query: text("query").notNull(),
+    vertical: text("vertical").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("search_logs_user_idx").on(t.userId),
+    index("search_logs_session_idx").on(t.sessionId),
+    index("search_logs_created_idx").on(t.createdAt),
+  ]
+)
+
+export type User = typeof users.$inferSelect
+export type NewUser = typeof users.$inferInsert
+export type SearchLog = typeof searchLogs.$inferSelect
+export type NewSearchLog = typeof searchLogs.$inferInsert
+
 export type PokemonSet = typeof pokemonSets.$inferSelect
 export type PokemonCard = typeof pokemonCards.$inferSelect
 export type PokemonPrice = typeof pokemonPrices.$inferSelect

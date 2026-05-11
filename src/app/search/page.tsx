@@ -1,13 +1,16 @@
 import Link from "next/link"
-import { AdapterStatusStrip } from "@/components/adapter-status-strip"
+import { auth } from "@clerk/nextjs/server"
+import { checkSearchQuota, logSearch } from "@/lib/quota"
 import { Nav } from "@/components/nav"
 import { Footer } from "@/components/footer"
 import { SearchBox } from "@/components/search-box"
 import { SearchStream } from "@/components/search-stream"
 import { ThemeSwitch } from "@/components/theme-switch"
+import { AdapterStatusStrip } from "@/components/adapter-status-strip"
 import { allCatalogEntries } from "@/lib/mock/catalog"
 import { formatPrice, VERTICAL_LABELS } from "@/lib/format"
 import type { Vertical } from "@/lib/types"
+import { QuotaGate } from "@/components/quota-gate"
 
 export const dynamic = "force-dynamic"
 
@@ -49,6 +52,14 @@ export default async function SearchPage({ searchParams }: Props) {
   }
   // Default vertical so the endpoint doesn't need to infer.
   if (!streamParams.has("v")) streamParams.set("v", vertical)
+
+  const { userId } = await auth()
+  const quota = await checkSearchQuota(userId ?? undefined)
+
+  if (q && quota.allowed) {
+    // Audit log the search event
+    await logSearch({ userId: userId ?? undefined, query: q, vertical })
+  }
 
   return (
     <>
@@ -95,14 +106,16 @@ export default async function SearchPage({ searchParams }: Props) {
       </section>
 
       <main className="mx-auto max-w-[1440px] px-5 sm:px-8 py-10 relative z-10">
-        {q ? (
+        {!q ? (
+          <EmptyState vertical={vertical} />
+        ) : !quota.allowed ? (
+          <QuotaGate status={quota} />
+        ) : (
           <SearchStream
             query={streamParams.toString()}
             sort={sort}
             statusStrip={<AdapterStatusStrip />}
           />
-        ) : (
-          <EmptyState vertical={vertical} />
         )}
       </main>
 

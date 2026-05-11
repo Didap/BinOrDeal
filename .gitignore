@@ -9,3 +9,6 @@ dist
 .vercel
 next-env.d.ts
 *.tsbuildinfo
+
+# clerk configuration (can include secrets)
+/.clerk/

@@ -24,9 +24,10 @@ declare global {
 
 function getClient() {
   if (!connectionString) {
-    throw new Error(
-      "DATABASE_URL not set. Copy .env.example to .env.local and run `docker compose up -d`.",
+    console.warn(
+      "DATABASE_URL not set. Database features (search quotas, users) will be disabled. Copy .env.example to .env.local to enable.",
     )
+    return null
   }
   if (!globalThis.__binOrDealPg) {
     globalThis.__binOrDealPg = postgres(connectionString, {
@@ -38,5 +39,6 @@ function getClient() {
   return globalThis.__binOrDealPg
 }
 
-export const db = drizzle(getClient(), { schema })
+const client = getClient()
+export const db = client ? drizzle(client, { schema }) : (null as any)
 export { schema }

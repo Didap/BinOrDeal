@@ -7,6 +7,16 @@
         "COOLIFY_ACCESS_TOKEN": "${COOLIFY_KEY_DIDAP}",
         "COOLIFY_BASE_URL": "http://178.104.36.242:8000/"
       }
+    },
+    "verso": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://verso.didap.it/api/mcp/mcp",
+        "--header",
+        "Authorization: Bearer vrs_5LuOrtVbbzBJD4XxR0MrYgcPjBhD17W5m3oym4id"
+      ]
     }
   }
 }

@@ -20,20 +20,20 @@ export default function HomePage() {
       <Nav />
       <DealTicker />
 
-      <main className="relative z-10">
+      <main className="relative z-10 overflow-x-hidden">
         {/* HERO */}
         <section className="relative overflow-hidden">
           <div className="mx-auto max-w-[1440px] px-5 sm:px-8 pt-16 pb-8 sm:pt-24 sm:pb-14 grid lg:grid-cols-[1.15fr_1fr] gap-12 items-start">
             <div className="rise">
               {/* Top eyebrow */}
-              <div className="flex items-center gap-3 mb-6">
-                <span className="h-[2px] w-10 bg-ink" aria-hidden />
-                <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-soft">
-                  Vol. 01 · EU marketplace aggregator · Aprile 2026
+              <div className="flex items-center gap-3 mb-6 overflow-hidden">
+                <span className="h-[2px] w-8 bg-ink shrink-0" aria-hidden />
+                <span className="font-mono text-[9px] xs:text-[10px] sm:text-[11px] uppercase tracking-widest text-ink-soft truncate">
+                  EU marketplace aggregator · 2026
                 </span>
               </div>
 
-              <h1 className="display text-[clamp(64px,12vw,148px)] leading-[0.88] tracking-tightest font-black">
+              <h1 className="display text-[clamp(48px,15vw,148px)] leading-[0.88] tracking-tightest font-black">
                 <span className="text-bin">Bin.</span>
                 <br />
                 <span
@@ -56,25 +56,13 @@ export default function HomePage() {
               {/* Search */}
               <div className="mt-10 rise" style={{ animationDelay: "300ms" }}>
                 <SearchBox initialQuery="" suggestions={SUGGESTIONS} />
-                <div className="mt-3 flex items-center flex-wrap gap-2 text-[11px] font-mono uppercase tracking-widest text-ink-muted">
-                  <span>Prova →</span>
-                  {SUGGESTIONS.slice(0, 4).map((s) => (
-                    <Link
-                      key={s}
-                      href={`/search?q=${encodeURIComponent(s)}&v=${s.includes("euro") || s.includes("lire") ? "coins" : "pokemon"}`}
-                      className="border border-line-strong px-2 py-1 hover:bg-ink hover:text-paper transition-colors normal-case tracking-normal"
-                    >
-                      {s}
-                    </Link>
-                  ))}
-                </div>
               </div>
 
               {/* Stats strip */}
-              <div className="mt-16 grid grid-cols-3 gap-6 border-t-2 border-ink pt-6">
+              <div className="mt-16 grid grid-cols-1 xs:grid-cols-3 gap-8 xs:gap-6 border-t-2 border-ink pt-6">
                 <Stat n="4" label="Marketplace" sub="aggregati in parallelo" />
                 <Stat n="2" label="Verticali" sub="Pokémon · Monete" />
-                <Stat n="0" label="Annunci storicizzati" sub="user-initiated, zero caching" />
+                <Stat n="0" label="Annunci storicizzati" sub="zero caching" />
               </div>
             </div>
 
@@ -138,7 +126,7 @@ export default function HomePage() {
                 <span className="italic">un solo verdetto.</span>
               </h3>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <MarketCard name="eBay" tag="Browse API ufficiale + EPN" status="live-ready" />
               <MarketCard name="Vinted" tag="Endpoint JSON · session proxy" status="user-initiated" />
               <MarketCard name="Wallapop" tag="JSON pubblico · geo-filter" status="user-initiated" />
@@ -188,7 +176,7 @@ export default function HomePage() {
               <div className="font-mono text-[11px] uppercase tracking-widest text-ink-muted mb-6">
                 La formula
               </div>
-              <div className="font-mono tabular text-2xl sm:text-3xl leading-relaxed">
+              <div className="font-mono tabular text-xl xs:text-2xl sm:text-3xl leading-relaxed overflow-x-auto pb-2">
                 <span className="text-ink-muted">score = </span>
                 <span className="inline-block align-middle">
                   <span className="block border-b-2 border-ink px-2">
@@ -272,10 +260,10 @@ export default function HomePage() {
                 price="€0"
                 cadence="per sempre"
                 features={[
-                  "2 ricerche salvate",
+                  "10 ricerche al giorno (con account)",
+                  "3 ricerche anonime per sessione",
                   "Alert email ogni 60 min",
                   "Scoring su tutti i verticali",
-                  "Filtri base",
                 ]}
               />
               <PriceCard
@@ -284,9 +272,9 @@ export default function HomePage() {
                 cadence="al mese"
                 featured
                 features={[
-                  "Ricerche illimitate",
+                  "Ricerche illimitate (no quota)",
+                  "Priorità sui rate limit marketplace",
                   "Alert ogni 15 min · email + Telegram",
-                  "Priorità sui rate limit",
                   "Filtri avanzati (condizione, seller rating, paese)",
                   "Export CSV · share link",
                 ]}
@@ -324,12 +312,12 @@ export default function HomePage() {
 
 function Stat({ n, label, sub }: { n: string; label: string; sub: string }) {
   return (
-    <div>
-      <div className="display tabular text-5xl sm:text-6xl font-black leading-none">{n}</div>
-      <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
+    <div className="flex flex-col min-w-0">
+      <div className="display tabular text-4xl xs:text-5xl sm:text-6xl font-black leading-none truncate">{n}</div>
+      <div className="mt-1 font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-ink-muted truncate">
         {label}
       </div>
-      <div className="mt-1 text-[11px] text-ink-soft leading-snug max-w-[22ch]">{sub}</div>
+      <div className="mt-1 text-[10px] sm:text-[11px] text-ink-soft leading-snug max-w-[18ch] sm:max-w-[22ch]">{sub}</div>
     </div>
   )
 }

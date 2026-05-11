@@ -180,9 +180,10 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
               href={listing.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-deal transition-colors inline-flex items-center gap-1"
+              className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-deal transition-colors inline-flex items-center gap-1 before:absolute before:inset-0"
             >
-              Apri su {platformLabel}
+              Vedi annuncio
+              <span className="hidden xs:inline">su {platformLabel}</span>
               <span aria-hidden>↗</span>
             </a>
           </div>

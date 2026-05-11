@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import posthog from "posthog-js"
+import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/cn"
 import type { Vertical } from "@/lib/types"
 import { VERTICAL_LABELS } from "@/lib/format"
@@ -19,8 +20,6 @@ interface Props {
   initialShoeSize?: string
   initialShoeGender?: ShoeGender
   initialPokemonSet?: string
-  /** When false, lottery / mystery-box pokémon listings are kept in the
-   *  results (and flagged) instead of dropped. Default: true (drop). */
   initialExcludeLotteries?: boolean
   size?: "hero" | "compact"
   placeholder?: string
@@ -52,16 +51,15 @@ export function SearchBox({
   const [pokemonSet, setPokemonSet] = useState<string>(initialPokemonSet ?? "any")
   const [excludeLotteries, setExcludeLotteries] = useState(initialExcludeLotteries)
 
+  const isPokemon = vertical === "pokemon"
   const defaultPlaceholder =
     vertical === "pokemon"
-      ? "charizard base set, pikachu, eevee gold star…"
+      ? "charizard, pikachu, eevee…"
       : vertical === "coins"
-        ? "2 euro grecia 2004, 500 lire argento…"
+        ? "2 euro 2004, 500 lire…"
         : vertical === "games"
-          ? gameKind === "console"
-            ? "playstation 5 pro, switch 2, steam deck oled…"
-            : "zelda tears of the kingdom, elden ring, ocarina of time…"
-          : "jordan 1, dunk low panda, yeezy 350…"
+          ? "ps5, switch 2, zelda…"
+          : "jordan 1, yeezy…"
 
   function go(e?: React.FormEvent) {
     e?.preventDefault()
@@ -80,202 +78,131 @@ export function SearchBox({
     }
     if (vertical === "pokemon") {
       if (pokemonSet && pokemonSet !== "any") params.set("set", pokemonSet)
-      // Default = exclude lotteries; only carry the param when user opted in.
       if (!excludeLotteries) params.set("exl", "0")
     }
     posthog.capture("search_submit", {
       query: trimmed,
       vertical,
-      ...(vertical === "games" ? { game_kind: gameKind, game_platform: gamePlatform } : {}),
-      ...(vertical === "shoes" ? { shoe_size: shoeSize, shoe_gender: shoeGender } : {}),
-      ...(vertical === "pokemon"
-        ? { pokemon_set: pokemonSet, exclude_lotteries: excludeLotteries }
-        : {}),
     })
-    // Client-side navigation via Next router. `useTransition` flips
-    // `isPending` synchronously on click, which we use to mount a fullscreen
-    // overlay below — the overlay covers the source page so the user gets
-    // immediate visual feedback even while Next is still fetching the new
-    // RSC payload (which can stall several seconds on a cold container).
-    // When the navigation completes, isPending falls back to false and the
-    // overlay unmounts naturally as the new page renders.
     startTransition(() => {
       router.push(`/search?${params.toString()}`)
     })
   }
 
   return (
-    <div className="w-full space-y-2">
-    {isPending && <SubmitOverlay query={q.trim()} />}
-    {/*
-      Native form submission is the resilience floor: if the JS bundle
-      hasn't hydrated yet (slow network, slow Coolify cold start), the
-      browser still does GET /search?q=…&v=… on submit. After hydration
-      `go()` calls preventDefault and takes over with router.push + the
-      transition overlay. Vertical-specific refiners (gameKind, set,
-      pokemonSet, exl) live in React state only — the pre-hydration
-      submit falls back to a basic q+v search, which is acceptable since
-      almost no user clicks before JS loads.
-    */}
-    <form
-      action="/search"
-      method="get"
-      onSubmit={go}
-      className={cn(
-        "group relative flex w-full items-stretch",
-        "bg-surface border-2 border-ink",
-        size === "hero" && "rounded-[4px]",
-        size === "compact" && "rounded-[3px]",
-      )}
-    >
-      {/* vertical selector */}
-      <div
+    <div className="w-full space-y-3">
+      {isPending && <SubmitOverlay query={q.trim()} />}
+
+      <form
+        onSubmit={go}
         className={cn(
-          "relative flex items-center border-r-2 border-ink bg-ink text-paper",
-          size === "hero" ? "px-5" : "px-3",
+          "flex flex-col sm:flex-row items-stretch bg-surface border-2 border-ink",
+          size === "hero" ? "rounded-[4px] shadow-[6px_6px_0_rgba(21,18,13,0.1)]" : "rounded-[2px]",
         )}
       >
-        <label className="sr-only" htmlFor="vertical-select">
-          Verticale
-        </label>
-        <select
-          id="vertical-select"
-          name="v"
-          value={vertical}
-          onChange={(e) => setVertical(e.target.value as Vertical)}
+        {/* Category selector */}
+        <div className="relative group/cat min-w-0 sm:min-w-[180px] border-b-2 sm:border-b-0 sm:border-r-2 border-ink bg-ink text-paper shrink-0">
+          <select
+            value={vertical}
+            onChange={(e) => setVertical(e.target.value as Vertical)}
+            className="w-full h-11 sm:h-auto pl-4 pr-10 py-3 bg-transparent font-mono text-[11px] uppercase tracking-widest cursor-pointer appearance-none outline-none"
+          >
+            {Object.entries(VERTICAL_LABELS).map(([val, label]) => (
+              <option key={val} value={val} className="text-ink">
+                {label}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 opacity-70">
+            <ChevronDown size={14} />
+          </div>
+        </div>
+
+        {/* Search input */}
+        <div className="relative flex-1 min-w-0">
+          <input
+            type="text"
+            placeholder={placeholder ?? defaultPlaceholder}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 200)}
+            className={cn(
+              "w-full h-12 sm:h-full px-4 py-3 bg-transparent font-sans text-base outline-none placeholder:text-ink-faint",
+              size === "hero" && "sm:text-lg",
+            )}
+          />
+        </div>
+
+        {/* Submit button */}
+        <button
+          type="submit"
+          disabled={isPending}
           className={cn(
-            "appearance-none bg-transparent font-mono font-bold uppercase tracking-widest outline-none cursor-pointer pr-5",
-            size === "hero" ? "text-xs py-4" : "text-[10px] py-2.5",
+            "h-12 sm:h-auto px-6 sm:px-8 bg-deal text-paper font-mono text-[11px] uppercase tracking-[0.2em] font-black border-t-2 sm:border-t-0 sm:border-l-2 border-ink hover:bg-deal-deep transition-all",
+            isPending && "opacity-80 cursor-wait",
           )}
         >
-          <option value="pokemon">{VERTICAL_LABELS.pokemon}</option>
-          <option value="coins">{VERTICAL_LABELS.coins}</option>
-          <option value="games">{VERTICAL_LABELS.games}</option>
-          <option value="shoes">{VERTICAL_LABELS.shoes}</option>
-        </select>
-        <span aria-hidden className="pointer-events-none absolute right-2 text-xs opacity-70">
-          ▾
-        </span>
-      </div>
+          {isPending ? "Cerco…" : (
+            <>
+              <span className="sm:hidden">Verifica Prezzi</span>
+              <span className="hidden sm:inline">Bin? Deal?</span>
+            </>
+          )}
+        </button>
 
-      {/* keyword input */}
-      <label className="sr-only" htmlFor="q">
-        Cerca
-      </label>
-      <input
-        id="q"
-        name="q"
-        type="text"
-        autoComplete="off"
-        placeholder={placeholder ?? defaultPlaceholder}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 150)}
-        className={cn(
-          "flex-1 bg-transparent outline-none placeholder:text-ink-faint text-ink",
-          size === "hero" && "px-5 py-4 text-lg",
-          size === "compact" && "px-3 py-2.5 text-sm",
-        )}
-      />
+        {/* Autocomplete portals could go here if needed, keeping it simple for now */}
+      </form>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className={cn(
-          "bg-deal text-paper font-mono font-bold uppercase tracking-widest",
-          "border-l-2 border-ink transition-colors",
-          isPending ? "bg-deal-deep cursor-wait" : "hover:bg-deal-deep",
-          size === "hero" && "px-7 text-sm",
-          size === "compact" && "px-4 text-[11px]",
-        )}
-      >
-        {isPending ? (
-          <span className="inline-flex items-center gap-2">
-            <span aria-hidden className="size-1.5 rounded-full bg-paper pulse-dot" />
-            Cerco…
-          </span>
-        ) : (
-          "Bin? Deal?"
-        )}
-      </button>
-
-      {focused && vertical === "pokemon" && (
-        <PokemonAutocomplete
-          query={q}
-          setId={pokemonSet}
-          onPick={(card) => {
-            const p = new URLSearchParams({
-              q: card.shortName,
-              v: "pokemon",
-              set: card.setId,
-              ref: card.productId,
-            })
-            posthog.capture("search_submit", {
-              query: card.shortName,
-              vertical: "pokemon",
-              pokemon_set: card.setId,
-              ref_product_id: card.productId,
-              source: "autocomplete",
-            })
-            router.push(`/search?${p.toString()}`)
-          }}
+      {/* Refiner strips — stack on mobile */}
+      {vertical === "games" && (
+        <GamesRefiner
+          kind={gameKind}
+          onKindChange={setGameKind}
+          platform={gamePlatform}
+          onPlatformChange={setGamePlatform}
         />
       )}
-      {focused && vertical !== "pokemon" && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 bg-surface border-2 border-ink rounded-[3px] shadow-[6px_6px_0_rgba(21,18,13,0.12)]">
-          <div className="px-4 py-2 border-b border-line text-[10px] font-mono uppercase tracking-widest text-ink-muted">
-            Prova queste
-          </div>
-          <ul>
+      {vertical === "shoes" && (
+        <ShoesRefiner
+          shoeSize={shoeSize}
+          onShoeSizeChange={setShoeSize}
+          gender={shoeGender}
+          onGenderChange={setShoeGender}
+        />
+      )}
+      {isPokemon && (
+        <PokemonRefiner
+          pokemonSet={pokemonSet}
+          onPokemonSetChange={setPokemonSet}
+          excludeLotteries={excludeLotteries}
+          onExcludeLotteriesChange={setExcludeLotteries}
+        />
+      )}
+
+      {/* Suggestions — wrap aggressively */}
+      {suggestions.length > 0 && (
+        <div className="flex items-start gap-2 flex-wrap pt-1">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted py-1.5">
+            Prova →
+          </span>
+          <div className="flex gap-2 flex-wrap min-w-0">
             {suggestions.map((s) => (
-              <li key={s}>
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    setQ(s)
-                    setTimeout(go, 0)
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-paper-deep transition-colors flex items-center justify-between"
-                >
-                  <span>{s}</span>
-                  <span className="text-ink-faint text-xs font-mono">↵</span>
-                </button>
-              </li>
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setQ(s)
+                  setTimeout(go, 10)
+                }}
+                className="border-2 border-line-strong px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-soft hover:bg-ink hover:text-paper transition-colors whitespace-nowrap"
+              >
+                {s}
+              </button>
             ))}
-          </ul>
+          </div>
         </div>
       )}
-    </form>
-
-    {vertical === "games" && (
-      <GamesRefiner
-        kind={gameKind}
-        onKindChange={setGameKind}
-        platform={gamePlatform}
-        onPlatformChange={setGamePlatform}
-        size={size}
-      />
-    )}
-    {vertical === "shoes" && (
-      <ShoesRefiner
-        shoeSize={shoeSize}
-        onShoeSizeChange={setShoeSize}
-        gender={shoeGender}
-        onGenderChange={setShoeGender}
-        size={size}
-      />
-    )}
-    {vertical === "pokemon" && (
-      <PokemonRefiner
-        pokemonSet={pokemonSet}
-        onPokemonSetChange={setPokemonSet}
-        excludeLotteries={excludeLotteries}
-        onExcludeLotteriesChange={setExcludeLotteries}
-        size={size}
-      />
-    )}
     </div>
   )
 }
@@ -285,82 +212,49 @@ function GamesRefiner({
   onKindChange,
   platform,
   onPlatformChange,
-  size,
 }: {
   kind: GameKind
   onKindChange: (k: GameKind) => void
   platform: string
   onPlatformChange: (p: string) => void
-  size: "hero" | "compact"
 }) {
-  const grouped = GAME_PLATFORMS.reduce(
-    (acc, p) => {
-      ;(acc[p.era] ??= []).push(p)
-      return acc
-    },
-    {} as Record<(typeof GAME_PLATFORMS)[number]["era"], typeof GAME_PLATFORMS>,
-  )
-
   return (
-    <div
-      className={cn(
-        "flex items-center flex-wrap gap-3 border-2 border-ink bg-paper/60 px-3 py-2",
-        size === "compact" && "py-1.5",
-      )}
-    >
-      <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
-        Cerco
-      </span>
-
-      {/* kind toggle */}
-      <div className="inline-flex border-2 border-ink">
-        {(["console", "game"] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onKindChange(k)}
-            className={cn(
-              "px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors",
-              kind === k ? "bg-ink text-paper" : "bg-transparent text-ink-muted hover:bg-paper-deep",
-            )}
-          >
-            {k === "console" ? "Una console" : "Un gioco"}
-          </button>
-        ))}
+    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 border-2 border-ink bg-paper-deep p-2 xs:px-3 xs:py-2">
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted shrink-0">
+          Tipo
+        </span>
+        <div className="flex border-2 border-ink shrink-0 bg-surface">
+          {(["console", "game"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onKindChange(k)}
+              className={cn(
+                "px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors",
+                kind === k ? "bg-ink text-paper" : "bg-transparent text-ink-muted",
+              )}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
       </div>
-
-      {/* platform selector only when kind=game */}
       {kind === "game" && (
-        <label className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
-          per
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">per</span>
           <select
             value={platform}
             onChange={(e) => onPlatformChange(e.target.value)}
-            className="appearance-none bg-surface border-2 border-ink px-2 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer text-ink"
+            className="flex-1 h-9 bg-surface border-2 border-ink px-2 font-mono text-[10px] uppercase outline-none"
           >
             <option value="any">Qualsiasi</option>
-            {Object.entries(grouped).map(([era, list]) => (
-              <optgroup
-                key={era}
-                label={ERA_LABELS[era as keyof typeof ERA_LABELS]}
-              >
-                {list.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </optgroup>
+            {GAME_PLATFORMS.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
             ))}
           </select>
-        </label>
+        </div>
       )}
-
-      {/* Precision hint */}
-      <span className="ml-auto font-mono text-[10px] normal-case text-ink-muted">
-        {kind === "console"
-          ? "titoli di giochi verranno esclusi"
-          : "la piattaforma verrà aggiunta alla keyword"}
-      </span>
     </div>
   )
 }
@@ -370,59 +264,43 @@ function ShoesRefiner({
   onShoeSizeChange,
   gender,
   onGenderChange,
-  size,
 }: {
   shoeSize: string
   onShoeSizeChange: (s: string) => void
   gender: ShoeGender | "any"
   onGenderChange: (g: ShoeGender | "any") => void
-  size: "hero" | "compact"
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-center flex-wrap gap-3 border-2 border-ink bg-paper/60 px-3 py-2",
-        size === "compact" && "py-1.5",
-      )}
-    >
-      <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
-        Taglia
-      </span>
-      <select
-        value={shoeSize}
-        onChange={(e) => onShoeSizeChange(e.target.value)}
-        className="appearance-none bg-surface border-2 border-ink px-2 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer text-ink"
-      >
-        <option value="any">qualsiasi</option>
-        {EU_SIZES.map((s) => (
-          <option key={s} value={s}>
-            EU {s}
-          </option>
-        ))}
-      </select>
-
-      <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
-        Genere
-      </span>
-      <div className="inline-flex border-2 border-ink">
-        {(["any", "uomo", "donna", "unisex"] as const).map((g) => (
-          <button
-            key={g}
-            type="button"
-            onClick={() => onGenderChange(g)}
-            className={cn(
-              "px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors",
-              gender === g ? "bg-ink text-paper" : "bg-transparent text-ink-muted hover:bg-paper-deep",
-            )}
-          >
-            {g === "any" ? "tutti" : g}
-          </button>
-        ))}
+    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 border-2 border-ink bg-paper-deep p-2 xs:px-3 xs:py-2">
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Taglia</span>
+        <select
+          value={shoeSize}
+          onChange={(e) => onShoeSizeChange(e.target.value)}
+          className="h-9 bg-surface border-2 border-ink px-2 font-mono text-[10px] outline-none"
+        >
+          <option value="any">qualsiasi</option>
+          {EU_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
       </div>
-
-      <span className="ml-auto font-mono text-[10px] normal-case text-ink-muted max-w-[32ch] text-right leading-tight">
-        titoli senza taglia o con "maglietta / felpa / adesivo" verranno esclusi
-      </span>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Genere</span>
+        <div className="flex border-2 border-ink bg-surface">
+          {(["any", "uomo", "donna"] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => onGenderChange(g)}
+              className={cn(
+                "px-3 py-2 font-mono text-[10px] uppercase tracking-widest",
+                gender === g ? "bg-ink text-paper" : "bg-transparent text-ink-muted",
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -432,174 +310,52 @@ function PokemonRefiner({
   onPokemonSetChange,
   excludeLotteries,
   onExcludeLotteriesChange,
-  size,
 }: {
   pokemonSet: string
   onPokemonSetChange: (s: string) => void
   excludeLotteries: boolean
   onExcludeLotteriesChange: (b: boolean) => void
-  size: "hero" | "compact"
 }) {
-  const grouped = POKEMON_SETS.reduce(
-    (acc, s) => {
-      ;(acc[s.era] ??= []).push(s)
-      return acc
-    },
-    {} as Record<(typeof POKEMON_SETS)[number]["era"], typeof POKEMON_SETS>,
-  )
-
   return (
-    <div
-      className={cn(
-        "flex items-center flex-wrap gap-3 border-2 border-ink bg-paper/60 px-3 py-2",
-        size === "compact" && "py-1.5",
-      )}
-    >
-      <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted">
-        Set
-      </span>
-      <select
-        value={pokemonSet}
-        onChange={(e) => onPokemonSetChange(e.target.value)}
-        className="appearance-none bg-surface border-2 border-ink px-2 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer text-ink min-w-[20ch]"
-      >
-        <option value="any">qualsiasi set</option>
-        {Object.entries(grouped).map(([era, sets]) => (
-          <optgroup
-            key={era}
-            label={POKEMON_ERA_LABELS[era as keyof typeof POKEMON_ERA_LABELS]}
-          >
-            {sets.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-
-      {/* Lottery exclusion — Pokémon-only. The marketplaces are full of raffle
-          listings whose displayed price (€1–€5) is the ticket cost rather than
-          the card itself; left in, they pollute results and get scored as
-          enormous fake "deals". Default ON. */}
-      <label
-        className={cn(
-          "inline-flex items-center gap-2 select-none cursor-pointer font-mono text-[11px] uppercase tracking-widest transition-opacity",
-          excludeLotteries ? "text-ink" : "text-ink-muted opacity-80",
-        )}
-      >
+    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 border-2 border-ink bg-paper-deep p-3 xs:px-3 xs:py-2">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Set</span>
+        <select
+          value={pokemonSet}
+          onChange={(e) => onPokemonSetChange(e.target.value)}
+          className="flex-1 h-10 xs:h-9 bg-surface border-2 border-ink px-3 font-mono text-[11px] uppercase outline-none min-w-0"
+        >
+          <option value="any">Qualsiasi Set</option>
+          {POKEMON_SETS.map((s) => (
+            <option key={s.id} value={s.id}>{s.label}</option>
+          ))}
+        </select>
+      </div>
+      <label className="flex items-center gap-2 cursor-pointer select-none py-1">
         <input
           type="checkbox"
           checked={excludeLotteries}
           onChange={(e) => onExcludeLotteriesChange(e.target.checked)}
-          className="size-3.5 accent-bin border-2 border-ink cursor-pointer"
+          className="size-4 accent-ink"
         />
-        Escludi lotterie
-      </label>
-
-      <span className="ml-auto font-mono text-[10px] normal-case text-ink-muted max-w-[40ch] text-right leading-tight">
-        il set viene aggiunto alla keyword — ref Cardmarket filtrato per set
-      </span>
-    </div>
-  )
-}
-
-function PokemonAutocomplete({
-  query,
-  setId,
-  onPick,
-}: {
-  query: string
-  setId: string
-  onPick: (card: PokemonCardListing) => void
-}) {
-  const suggestions = suggestPokemonCards(query, { setId, limit: 10 })
-
-  if (suggestions.length === 0) {
-    return (
-      <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 bg-surface border-2 border-ink rounded-[3px] shadow-[6px_6px_0_rgba(21,18,13,0.12)] px-4 py-6 font-mono text-[11px] text-ink-muted text-center">
-        Nessuna carta nel catalogo per questa ricerca. Invio per cercare comunque sui marketplace.
-      </div>
-    )
-  }
-
-  return (
-    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 bg-surface border-2 border-ink rounded-[3px] shadow-[6px_6px_0_rgba(21,18,13,0.12)] max-h-[60vh] overflow-auto">
-      <div className="px-4 py-2 border-b border-line text-[10px] font-mono uppercase tracking-widest text-ink-muted flex justify-between">
-        <span>Picka la carta</span>
-        <span className="normal-case tracking-normal">
-          ref → €{query ? "picked" : "auto"}
+        <span className="font-mono text-[10px] uppercase tracking-widest text-ink">
+          Escludi lotterie
         </span>
-      </div>
-      <ul>
-        {suggestions.map((card) => (
-          <li key={card.productId}>
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                onPick(card)
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-paper-deep transition-colors flex items-center justify-between gap-4 border-b border-line last:border-0"
-            >
-              <div className="min-w-0">
-                <div className="display text-sm font-bold truncate">
-                  {card.shortName}
-                  {card.number && (
-                    <span className="font-mono font-normal text-ink-muted ml-2">
-                      #{card.number}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-ink-muted">
-                  {card.setLabel}
-                </div>
-              </div>
-              <div className="font-mono tabular text-sm font-bold shrink-0">
-                {formatPrice(card.refPriceCents)}
-              </div>
-            </button>
-          </li>
-        ))}
-      </ul>
+      </label>
     </div>
   )
 }
 
-/**
- * Fullscreen overlay shown while `router.push` is fetching the new RSC
- * payload — covers the source page so the click never feels dead. As soon
- * as Next finishes navigating, `isPending` flips back to false and this
- * unmounts (the new /search page is already painting its own skeleton at
- * that point, so there's no visual gap).
- */
 function SubmitOverlay({ query }: { query: string }) {
   return (
-    <div
-      className="fixed inset-0 z-[60] bg-paper/96 backdrop-blur-[2px] grid place-items-center"
-      role="status"
-      aria-live="polite"
-      aria-label="Carico la ricerca"
-    >
-      <div className="text-center px-6">
-        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-muted">
-          Bin or Deal · live feed
-        </div>
-        <div className="mt-3 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95]">
-          Cerco
-          <span aria-hidden className="inline-flex items-end gap-[3px] ml-3 align-baseline">
-            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "120ms" }} />
-            <span className="size-1.5 rounded-full bg-deal animate-bounce" style={{ animationDelay: "240ms" }} />
-          </span>
-        </div>
-        {query && (
-          <div className="mt-4 display italic text-xl text-ink-muted">
-            “{query}”
-          </div>
-        )}
-        <div className="mt-6 font-mono text-[11px] uppercase tracking-widest text-ink-muted">
-          Fan-out su 4 marketplace in parallelo…
+    <div className="fixed inset-0 z-[60] bg-paper/98 backdrop-blur-sm grid place-items-center p-6 text-center">
+      <div className="rise">
+        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-muted">Aggrego i mercati…</div>
+        <div className="mt-4 display text-4xl font-black tracking-tightest">Cerco “{query}”</div>
+        <div className="mt-8 flex justify-center gap-2">
+          <div className="size-2 bg-deal animate-bounce" style={{ animationDelay: "0ms" }} />
+          <div className="size-2 bg-deal animate-bounce" style={{ animationDelay: "150ms" }} />
+          <div className="size-2 bg-deal animate-bounce" style={{ animationDelay: "300ms" }} />
         </div>
       </div>
     </div>

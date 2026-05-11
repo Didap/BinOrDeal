@@ -16,6 +16,7 @@
     "catalog:sync:pokemon": "tsx scripts/catalog-sync-pokemon.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.3.3",
     "clsx": "2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "0.469.0",
