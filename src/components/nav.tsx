@@ -1,8 +1,8 @@
 "use client"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Menu, X, ArrowRight } from "lucide-react"
-import { useAuth, SignInButton, UserButton } from "@clerk/nextjs"
+import { Menu, X, ArrowRight, User } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import { Logo } from "@/components/logo"
 import { cn } from "@/lib/cn"
 
@@ -13,7 +13,35 @@ interface Props {
 
 export function Nav({ className, compact }: Props) {
   const [isOpen, setIsOpen] = useState(false)
-  const { userId, isLoaded } = useAuth()
+  const [user, setUser] = useState<any>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setIsLoaded(true)
+    }
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setIsLoaded(true)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignIn = () => {
+    // Redirect to a dedicated login page since we need email/pass fields
+    window.location.href = "/login"
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
 
   // Block scroll when menu is open
   useEffect(() => {
@@ -55,26 +83,28 @@ export function Nav({ className, compact }: Props) {
             <NavLink href="/search?v=games">Games</NavLink>
             <NavLink href="/search?v=shoes">Shoes</NavLink>
             
-            {isLoaded && !userId && (
-              <SignInButton mode="modal">
-                <button className="bg-ink text-paper px-4 py-2 hover:bg-deal transition-all active:translate-y-0.5">
-                  Accedi
-                </button>
-              </SignInButton>
+            {isLoaded && !user && (
+              <button 
+                onClick={handleSignIn}
+                className="bg-ink text-paper px-4 py-2 hover:bg-deal transition-all active:translate-y-0.5"
+              >
+                Accedi
+              </button>
             )}
-            {isLoaded && userId && (
+            {isLoaded && user && (
               <div className="flex items-center gap-6">
                 <Link href="/#pricing" className="text-ink-muted hover:text-ink transition-colors">Piani</Link>
-                <div className="size-8 rounded-full border-2 border-ink overflow-hidden">
-                  <UserButton 
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: "size-full rounded-none",
-                        userButtonTrigger: "size-full rounded-none",
-                      }
-                    }}
-                  />
-                </div>
+                <button 
+                  onClick={handleSignOut}
+                  className="size-8 rounded-full border-2 border-ink overflow-hidden bg-surface flex items-center justify-center hover:bg-paper-deep transition-colors"
+                  title="Logout"
+                >
+                  {user.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="User" className="size-full object-cover" />
+                  ) : (
+                    <User size={16} />
+                  )}
+                </button>
               </div>
             )}
           </nav>
@@ -115,17 +145,18 @@ export function Nav({ className, compact }: Props) {
             {/* User status in mobile menu */}
             {isLoaded && (
               <div className="mb-10 p-4 border-2 border-ink bg-surface flex items-center justify-between">
-                {!userId ? (
+                {!user ? (
                   <>
                     <div className="flex flex-col gap-1">
                       <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Bentornato</span>
                       <span className="display text-xl font-bold">Ospite</span>
                     </div>
-                    <SignInButton mode="modal">
-                      <button className="bg-ink text-paper px-4 py-2 font-mono text-[10px] uppercase tracking-widest font-bold">
-                        Accedi
-                      </button>
-                    </SignInButton>
+                    <button 
+                      onClick={handleSignIn}
+                      className="bg-ink text-paper px-4 py-2 font-mono text-[10px] uppercase tracking-widest font-bold"
+                    >
+                      Accedi
+                    </button>
                   </>
                 ) : (
                   <>
@@ -133,7 +164,12 @@ export function Nav({ className, compact }: Props) {
                       <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Account</span>
                       <span className="display text-xl font-bold">Attivo</span>
                     </div>
-                    <UserButton />
+                    <button 
+                      onClick={handleSignOut}
+                      className="p-2 border-2 border-ink hover:bg-paper-deep transition-colors"
+                    >
+                      Logout
+                    </button>
                   </>
                 )}
               </div>

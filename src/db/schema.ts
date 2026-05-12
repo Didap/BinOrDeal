@@ -110,9 +110,9 @@ export const pokemonPrices = pgTable(
 )
 
 /**
- * Users — managed via Clerk. We store a shadow copy of the profile
+ * Users — managed via Supabase. We store a shadow copy of the profile
  * to handle local permissions and search quotas without hitting
- * Clerk's API on every request.
+ * Supabase's API on every request.
  */
 export const users = pgTable(
   "users",

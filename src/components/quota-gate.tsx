@@ -1,10 +1,16 @@
 "use client"
 import Link from "next/link"
-import { SignInButton, SignUpButton } from "@clerk/nextjs"
 import { Lock, ArrowRight, Zap } from "lucide-react"
 import type { QuotaStatus } from "@/lib/quota"
+import { createClient } from "@/lib/supabase/client"
 
 export function QuotaGate({ status }: { status: QuotaStatus }) {
+  const supabase = createClient()
+
+  const handleSignIn = () => {
+    window.location.href = "/login"
+  }
+
   return (
     <div className="max-w-xl mx-auto py-12 px-6 border-2 border-ink bg-surface shadow-[8px_8px_0_rgba(21,18,13,0.1)] rise">
       <div className="flex flex-col items-center text-center">
@@ -27,16 +33,18 @@ export function QuotaGate({ status }: { status: QuotaStatus }) {
         <div className="mt-8 grid gap-4 w-full">
           {status.reason === "auth_required" ? (
             <>
-              <SignUpButton mode="modal">
-                <button className="w-full bg-deal text-paper py-4 font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-deal-deep transition-colors">
-                  Crea Account Gratuito <ArrowRight size={18} />
-                </button>
-              </SignUpButton>
-              <SignInButton mode="modal">
-                <button className="w-full border-2 border-ink py-4 font-mono font-bold uppercase tracking-widest hover:bg-paper-deep transition-colors">
-                  Accedi
-                </button>
-              </SignInButton>
+              <button 
+                onClick={handleSignIn}
+                className="w-full bg-deal text-paper py-4 font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-deal-deep transition-colors"
+              >
+                Crea Account Gratuito <ArrowRight size={18} />
+              </button>
+              <button 
+                onClick={handleSignIn}
+                className="w-full border-2 border-ink py-4 font-mono font-bold uppercase tracking-widest hover:bg-paper-deep transition-colors"
+              >
+                Accedi
+              </button>
             </>
           ) : (
             <>

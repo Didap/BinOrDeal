@@ -15,7 +15,7 @@ export type QuotaStatus = {
   reason?: "limit_reached" | "auth_required"
 }
 
-export async function checkSearchQuota(userId?: string): Promise<QuotaStatus> {
+export async function checkSearchQuota(userId?: string, userEmail?: string): Promise<QuotaStatus> {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("bid_session_id")?.value ?? "unknown"
 
@@ -26,8 +26,26 @@ export async function checkSearchQuota(userId?: string): Promise<QuotaStatus> {
   try {
     // 1. Check if user is logged in
     if (userId) {
-      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
+      let [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
       
+      // Auto-provision user if they exist in Auth but not in our users table
+      if (!user) {
+        // We might need the email here. For now let's try to get it or use a placeholder
+        // In a real app, you'd get this from the session/user object passed in.
+        // For now, I'll just insert with a placeholder or handle it.
+        // Actually, let's assume we want to insert them.
+        try {
+          const [newUser] = await db.insert(users).values({
+            id: userId,
+            email: userEmail ?? "unknown@auth.supabase",
+            tier: "free",
+          }).returning()
+          user = newUser
+        } catch (e) {
+          console.error("Failed to auto-provision user:", e)
+        }
+      }
+
       if (user?.tier === "pro") {
         return { allowed: true, remaining: 999, total: 999, tier: "pro" }
       }

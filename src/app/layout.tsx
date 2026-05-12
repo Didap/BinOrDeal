@@ -20,18 +20,14 @@ export const metadata: Metadata = {
   },
 }
 
-import { ClerkProvider } from "@clerk/nextjs"
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
-      <html lang="it">
-        <body className="antialiased">
-          <Suspense fallback={null}>
-            <PostHogProvider>{children}</PostHogProvider>
-          </Suspense>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="it">
+      <body className="antialiased">
+        <Suspense fallback={null}>
+          <PostHogProvider>{children}</PostHogProvider>
+        </Suspense>
+      </body>
+    </html>
   )
 }

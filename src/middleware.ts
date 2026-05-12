@@ -1,11 +1,12 @@
-import { clerkMiddleware } from "@clerk/nextjs/server"
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { updateSession } from "@/lib/supabase/middleware"
 
-export default clerkMiddleware((auth, req) => {
-  const res = NextResponse.next()
+export async function middleware(request: NextRequest) {
+  // Update Supabase session
+  const res = await updateSession(request)
   
-  // Ensure session ID for anonymous tracking
-  if (!req.cookies.has("bid_session_id")) {
+  // Ensure session ID for anonymous tracking (on top of Supabase response)
+  if (!request.cookies.has("bid_session_id")) {
     res.cookies.set("bid_session_id", crypto.randomUUID(), {
       maxAge: 60 * 60 * 24, // 24h
       path: "/",
@@ -15,7 +16,7 @@ export default clerkMiddleware((auth, req) => {
   }
   
   return res
-})
+}
 
 export const config = {
   matcher: [

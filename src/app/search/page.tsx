@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { auth } from "@clerk/nextjs/server"
+import { createClient } from "@/lib/supabase/server"
 import { checkSearchQuota, logSearch } from "@/lib/quota"
 import { Nav } from "@/components/nav"
 import { Footer } from "@/components/footer"
@@ -53,8 +53,10 @@ export default async function SearchPage({ searchParams }: Props) {
   // Default vertical so the endpoint doesn't need to infer.
   if (!streamParams.has("v")) streamParams.set("v", vertical)
 
-  const { userId } = await auth()
-  const quota = await checkSearchQuota(userId ?? undefined)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id
+  const quota = await checkSearchQuota(userId ?? undefined, user?.email)
 
   if (q && quota.allowed) {
     // Audit log the search event

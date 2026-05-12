@@ -13,10 +13,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "catalog:sync:pokemon": "tsx scripts/catalog-sync-pokemon.ts"
+    "catalog:sync:pokemon": "tsx --env-file=.env.local backend/src/jobs/catalog-sync-pokemon.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.3.3",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
     "clsx": "2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "0.469.0",

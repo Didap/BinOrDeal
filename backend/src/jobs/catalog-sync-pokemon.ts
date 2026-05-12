@@ -172,8 +172,9 @@ export async function syncPokemonCatalog(): Promise<{
   }
 }
 
+import { fileURLToPath } from "url"
 // Allow running the script directly via `npm run catalog:sync:pokemon`.
-const isDirect = import.meta.url === `file://${process.argv[1]}`
+const isDirect = fileURLToPath(import.meta.url) === process.argv[1]
 if (isDirect) {
   const { config } = await import("dotenv")
   config({ path: "../.env.local" })
