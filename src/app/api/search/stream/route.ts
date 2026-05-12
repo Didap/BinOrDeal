@@ -34,9 +34,15 @@ export async function GET(req: Request) {
     })
   }
 
+  const { createClient } = await import("@/lib/supabase/server")
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id
+
   const params = {
     q,
-    vertical: ((searchParams.get("v") as Vertical) ?? "pokemon") as Vertical,
+    userId,
+    vertical: ((searchParams.get("v") as Vertical) ?? "tcg") as Vertical,
     platforms: searchParams.get("p")?.split(",").filter(Boolean) as
       | Platform[]
       | undefined,
@@ -64,6 +70,10 @@ export async function GET(req: Request) {
     // `exl=0` opts the user *into* seeing pokémon lotteries (flagged, not
     // dropped). Any other value or missing param keeps the default (drop).
     excludeLotteries: searchParams.get("exl") !== "0",
+    customThresholds: {
+      deal: searchParams.get("td") ? Number(searchParams.get("td")) : undefined,
+      bin: searchParams.get("tb") ? Number(searchParams.get("tb")) : undefined,
+    },
   }
 
   const encoder = new TextEncoder()

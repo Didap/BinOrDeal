@@ -1,6 +1,8 @@
 import type { CatalogAdapter } from "./types"
 import { resolveCatalog } from "@/lib/mock/catalog"
 import { POKEMON_SETS_BY_ID } from "@/lib/pokemon"
+import { MTG_SETS_BY_ID } from "@/lib/mtg"
+import { ONEPIECE_SETS_BY_ID } from "@/lib/onepiece"
 import { scrapeCardmarketPrice } from "./cardmarket-scrape"
 
 /**
@@ -33,13 +35,30 @@ export const cardmarketAdapter: CatalogAdapter = {
     const ref = resolveCatalog(query, vertical, { pokemonSet: opts.pokemonSet })
     if (!ref) return null
 
+    // Map internal game key to Cardmarket game name
+    const gameKey = (ref.meta?.game as string) ?? "pokemon"
+    const GAME_MAP: Record<string, string> = {
+      pokemon: "Pokemon",
+      mtg: "Magic",
+      onepiece: "OnePiece",
+    }
+    const game = GAME_MAP[gameKey] || "Pokemon"
+
     // Try live scrape only when we have enough metadata to build the URL.
     const setId = (ref.meta?.set as string | undefined) ?? opts.pokemonSet
     const cardSlug = ref.meta?.cardmarketSlug as string | undefined
-    const setSlug = setId ? POKEMON_SETS_BY_ID[setId]?.cardmarketSlug : undefined
+
+    let setSlug: string | undefined
+    if (gameKey === "pokemon") {
+      setSlug = setId ? POKEMON_SETS_BY_ID[setId]?.cardmarketSlug : undefined
+    } else if (gameKey === "mtg") {
+      setSlug = setId ? MTG_SETS_BY_ID[setId]?.cardmarketSlug : undefined
+    } else if (gameKey === "onepiece") {
+      setSlug = setId ? ONEPIECE_SETS_BY_ID[setId]?.cardmarketSlug : undefined
+    }
 
     if (setSlug && cardSlug) {
-      const cacheKey = `${setSlug}/${cardSlug}`
+      const cacheKey = `${game}/${setSlug}/${cardSlug}`
       const cached = CACHE.get(cacheKey)
       let prices = cached && cached.expires > Date.now() ? cached.prices : null
       if (!prices) {
@@ -49,7 +68,7 @@ export const cardmarketAdapter: CatalogAdapter = {
           // we'd rather show the curated mock ref than block the streaming
           // search waiting for the scraped trend.
           prices = await Promise.race([
-            scrapeCardmarketPrice(setSlug, cardSlug),
+            scrapeCardmarketPrice(setSlug, cardSlug, game),
             new Promise<null>((res) => setTimeout(() => res(null), 5_000)),
           ])
           if (prices) {

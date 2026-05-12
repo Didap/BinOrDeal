@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     marketplaceAdapters.map(async (a) => {
       const start = Date.now()
       try {
-        const items = await a.search({ q: probe, vertical: "pokemon" })
+        const items = await a.search({ q: probe, vertical: "tcg" })
         return {
           platform: a.platform,
           label: a.label,
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     Object.entries(catalogAdapters).map(async ([vertical, a]) => {
       const start = Date.now()
       try {
-        const ref = await a.lookup(probe, vertical as "pokemon" | "coins")
+        const ref = await a.lookup(probe, vertical as any)
         return {
           vertical,
           source: a.source,

@@ -29,7 +29,7 @@ export interface MarketplaceMeta {
 }
 
 export interface CatalogMeta {
-  source: "cardmarket" | "numista" | "stockx"
+  source: "cardmarket" | "numista" | "stockx" | "heuristic"
   label: string
   status: "live" | "stub" | "down"
 }
@@ -49,8 +49,9 @@ export const MARKETPLACE_META: MarketplaceMeta[] = [
 ]
 
 export const CATALOG_META: Record<Vertical, CatalogMeta> = {
-  pokemon: { source: "cardmarket", label: "Cardmarket", status: "stub" },
+  tcg: { source: "cardmarket", label: "Cardmarket", status: "stub" },
   coins: { source: "numista", label: "Numista", status: "stub" },
   games: { source: "stockx", label: "StockX", status: "stub" },
   shoes: { source: "stockx", label: "StockX", status: "stub" },
+  other: { source: "heuristic", label: "Euristica", status: "live" },
 }

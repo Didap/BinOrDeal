@@ -30,8 +30,9 @@ export interface CardmarketPrices {
 export async function scrapeCardmarketPrice(
   setSlug: string,
   cardSlug: string,
+  game: string = "Pokemon",
 ): Promise<CardmarketPrices | null> {
-  const url = `https://www.cardmarket.com/en/Pokemon/Products/Singles/${setSlug}/${cardSlug}`
+  const url = `https://www.cardmarket.com/en/${game}/Products/Singles/${setSlug}/${cardSlug}`
   const context = await newContext({ locale: "en-GB" })
   await optimizeContext(context)
   const page = await context.newPage()

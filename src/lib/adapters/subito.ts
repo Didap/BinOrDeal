@@ -56,7 +56,7 @@ export const subitoAdapter: MarketplaceAdapter = {
       url.searchParams.set("t", "s") // "in vendita"
       url.searchParams.set("lim", "100")
       // Macrocategory scoping — reduces cross-category noise on broad keywords.
-      if (q.vertical === "pokemon" || q.vertical === "coins") {
+      if (q.vertical === "tcg" || q.vertical === "coins") {
         url.searchParams.set("c", "21") // Collezionismo
       } else if (q.vertical === "games") {
         url.searchParams.set("c", "9") // Console e Videogiochi

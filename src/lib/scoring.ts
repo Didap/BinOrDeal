@@ -20,9 +20,14 @@ const CONDITION_FACTOR: Record<Condition, number> = {
   unknown: 0.9,
 }
 
-export function tierOf(delta: number): ScoreTier {
-  if (delta >= THRESHOLDS.deal) return "deal"
-  if (delta <= THRESHOLDS.bin) return "bin"
+export function tierOf(
+  delta: number,
+  customThresholds?: { deal?: number; bin?: number },
+): ScoreTier {
+  const deal = customThresholds?.deal ?? THRESHOLDS.deal
+  const bin = customThresholds?.bin ?? THRESHOLDS.bin
+  if (delta >= deal) return "deal"
+  if (delta <= bin) return "bin"
   return "fair"
 }
 
@@ -33,6 +38,7 @@ interface ScoreInput {
   refSource: Score["refSource"]
   condition?: Condition
   includeShipping?: boolean
+  customThresholds?: { deal?: number; bin?: number }
 }
 
 export function scoreAgainstRef(input: ScoreInput): Score {
@@ -46,7 +52,7 @@ export function scoreAgainstRef(input: ScoreInput): Score {
   const delta = (adjustedRef - effectiveListing) / adjustedRef
 
   return {
-    tier: tierOf(delta),
+    tier: tierOf(delta, input.customThresholds),
     delta,
     percent: Math.round(delta * 100),
     ref: adjustedRef,
@@ -62,6 +68,7 @@ export function scoreListing(
   listing: Listing,
   refPriceCents: number,
   refSource: Score["refSource"],
+  customThresholds?: { deal?: number; bin?: number },
 ): Score {
   return scoreAgainstRef({
     listingPriceCents: listing.priceCents,
@@ -69,6 +76,7 @@ export function scoreListing(
     refPriceCents,
     refSource,
     condition: listing.condition,
+    customThresholds,
   })
 }
 

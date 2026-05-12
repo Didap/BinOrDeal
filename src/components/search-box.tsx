@@ -19,6 +19,7 @@ interface Props {
   initialGamePlatform?: string
   initialShoeSize?: string
   initialShoeGender?: ShoeGender
+  initialTcgGame?: "pokemon" | "mtg" | "onepiece"
   initialPokemonSet?: string
   initialExcludeLotteries?: boolean
   size?: "hero" | "compact"
@@ -28,7 +29,8 @@ interface Props {
 
 export function SearchBox({
   initialQuery = "",
-  initialVertical = "pokemon",
+  initialVertical = "tcg",
+  initialTcgGame = "pokemon",
   initialGameKind = "console",
   initialGamePlatform,
   initialShoeSize,
@@ -44,6 +46,7 @@ export function SearchBox({
   const [q, setQ] = useState(initialQuery)
   const [vertical, setVertical] = useState<Vertical>(initialVertical)
   const [focused, setFocused] = useState(false)
+  const [tcgGame, setTcgGame] = useState<"pokemon" | "mtg" | "onepiece">(initialTcgGame)
   const [gameKind, setGameKind] = useState<GameKind>(initialGameKind)
   const [gamePlatform, setGamePlatform] = useState<string>(initialGamePlatform ?? "any")
   const [shoeSize, setShoeSize] = useState<string>(initialShoeSize ?? "any")
@@ -51,15 +54,15 @@ export function SearchBox({
   const [pokemonSet, setPokemonSet] = useState<string>(initialPokemonSet ?? "any")
   const [excludeLotteries, setExcludeLotteries] = useState(initialExcludeLotteries)
 
-  const isPokemon = vertical === "pokemon"
+  const isTcg = vertical === "tcg"
   const defaultPlaceholder =
-    vertical === "pokemon"
-      ? "charizard, pikachu, eevee…"
+    vertical === "tcg"
+      ? tcgGame === "pokemon" ? "charizard, pikachu, eevee…" : tcgGame === "mtg" ? "black lotus, mox, lilliana…" : "shanks, luffy, zoro…"
       : vertical === "coins"
         ? "2 euro 2004, 500 lire…"
         : vertical === "games"
           ? "ps5, switch 2, zelda…"
-          : "jordan 1, yeezy…"
+          : vertical === "shoes" ? "jordan 1, yeezy…" : "oggetto vintage, orologio…"
 
   function go(e?: React.FormEvent) {
     e?.preventDefault()
@@ -76,9 +79,14 @@ export function SearchBox({
       if (shoeSize && shoeSize !== "any") params.set("size", shoeSize)
       if (shoeGender && shoeGender !== "any") params.set("gender", shoeGender)
     }
-    if (vertical === "pokemon") {
-      if (pokemonSet && pokemonSet !== "any") params.set("set", pokemonSet)
-      if (!excludeLotteries) params.set("exl", "0")
+    if (vertical === "tcg") {
+      params.set("game", tcgGame)
+      if (tcgGame === "pokemon" && pokemonSet && pokemonSet !== "any") {
+        params.set("set", pokemonSet)
+      }
+      if (tcgGame === "pokemon" && !excludeLotteries) {
+        params.set("exl", "0")
+      }
     }
     posthog.capture("search_submit", {
       query: trimmed,
@@ -171,8 +179,10 @@ export function SearchBox({
           onGenderChange={setShoeGender}
         />
       )}
-      {isPokemon && (
-        <PokemonRefiner
+      {isTcg && (
+        <TcgRefiner
+          game={tcgGame}
+          onGameChange={setTcgGame}
           pokemonSet={pokemonSet}
           onPokemonSetChange={setPokemonSet}
           excludeLotteries={excludeLotteries}
@@ -305,43 +315,73 @@ function ShoesRefiner({
   )
 }
 
-function PokemonRefiner({
+function TcgRefiner({
+  game,
+  onGameChange,
   pokemonSet,
   onPokemonSetChange,
   excludeLotteries,
   onExcludeLotteriesChange,
 }: {
+  game: "pokemon" | "mtg" | "onepiece"
+  onGameChange: (g: "pokemon" | "mtg" | "onepiece") => void
   pokemonSet: string
   onPokemonSetChange: (s: string) => void
   excludeLotteries: boolean
   onExcludeLotteriesChange: (b: boolean) => void
 }) {
   return (
-    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 border-2 border-ink bg-paper-deep p-3 xs:px-3 xs:py-2">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Set</span>
-        <select
-          value={pokemonSet}
-          onChange={(e) => onPokemonSetChange(e.target.value)}
-          className="flex-1 h-10 xs:h-9 bg-surface border-2 border-ink px-3 font-mono text-[11px] uppercase outline-none min-w-0"
-        >
-          <option value="any">Qualsiasi Set</option>
-          {POKEMON_SETS.map((s) => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
+    <div className="flex flex-col gap-3 border-2 border-ink bg-paper-deep p-3 xs:px-3 xs:py-2">
+      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Gioco</span>
+          <div className="flex border-2 border-ink bg-surface">
+            {(["pokemon", "mtg", "onepiece"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => onGameChange(g)}
+                className={cn(
+                  "px-3 py-2 font-mono text-[10px] uppercase tracking-widest",
+                  game === g ? "bg-ink text-paper" : "bg-transparent text-ink-muted",
+                )}
+              >
+                {g === "pokemon" ? "PKMN" : g.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {game === "pokemon" && (
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Set</span>
+            <select
+              value={pokemonSet}
+              onChange={(e) => onPokemonSetChange(e.target.value)}
+              className="flex-1 h-10 xs:h-9 bg-surface border-2 border-ink px-3 font-mono text-[11px] uppercase outline-none min-w-0"
+            >
+              <option value="any">Qualsiasi Set</option>
+              {POKEMON_SETS.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
-      <label className="flex items-center gap-2 cursor-pointer select-none py-1">
-        <input
-          type="checkbox"
-          checked={excludeLotteries}
-          onChange={(e) => onExcludeLotteriesChange(e.target.checked)}
-          className="size-4 accent-ink"
-        />
-        <span className="font-mono text-[10px] uppercase tracking-widest text-ink">
-          Escludi lotterie
-        </span>
-      </label>
+
+      {game === "pokemon" && (
+        <label className="flex items-center gap-2 cursor-pointer select-none py-1 border-t border-ink-faint xs:border-t-0">
+          <input
+            type="checkbox"
+            checked={excludeLotteries}
+            onChange={(e) => onExcludeLotteriesChange(e.target.checked)}
+            className="size-4 accent-ink"
+          />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink">
+            Escludi lotterie
+          </span>
+        </label>
+      )}
     </div>
   )
 }

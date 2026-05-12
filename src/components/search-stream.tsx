@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { ListingCard } from "@/components/listing-card"
 import { RefMatch } from "@/components/ref-match"
+import { ThresholdEditor } from "@/components/threshold-editor"
 import { ScoreBadge } from "@/components/score-badge"
 import {
   RefMatchSkeleton,
@@ -47,6 +48,13 @@ interface State {
   firstChunkAt: number | null
   /** Wallclock time when the `done` event landed. */
   doneAt: number | null
+  /** User-specific thresholds for the current product. */
+  customThresholds?: {
+    deal?: number
+    bin?: number
+    dealPriceCents?: number
+    binPriceCents?: number
+  }
 }
 
 function makeInitial(): State {
@@ -115,7 +123,21 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
         {statusStrip}
 
         {state.refResolved ? (
-          <RefMatch matched={state.ref} candidates={state.refCandidates} />
+          <div className="space-y-4">
+            <RefMatch matched={state.ref} candidates={state.refCandidates} />
+            {state.ref && state.ref.productId && state.ref.refSource !== "heuristic" && (
+              <ThresholdEditor
+                productId={state.ref.productId}
+                marketRefCents={state.ref.refPriceCents}
+                initialDealPriceCents={state.customThresholds?.dealPriceCents}
+                initialBinPriceCents={state.customThresholds?.binPriceCents}
+                onSaved={() => {
+                  // Re-fetching or re-running search would be ideal, 
+                  // but for now we just show it's saved.
+                }}
+              />
+            )}
+          </div>
         ) : (
           <RefMatchSkeleton />
         )}
@@ -184,7 +206,12 @@ function reduce(prev: State, event: SearchStreamEvent): State {
         refCandidates: event.refCandidates,
       }
     case "ref":
-      return { ...prev, ref: event.ref, refResolved: true }
+      return { 
+        ...prev, 
+        ref: event.ref, 
+        refResolved: true,
+        customThresholds: event.customThresholds
+      }
     case "chunk": {
       const arrived = new Set(prev.arrived)
       arrived.add(event.platform)

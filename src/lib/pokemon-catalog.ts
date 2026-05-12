@@ -24,8 +24,10 @@ export interface PokemonCardListing {
 }
 
 export const POKEMON_CATALOG: PokemonCardListing[] = (
-  Object.values(CATALOG.pokemon) as CatalogRef[]
-).map((ref) => {
+  Object.values(CATALOG.tcg) as CatalogRef[]
+)
+  .filter((ref) => ref.meta?.game === "pokemon")
+  .map((ref) => {
   const setId = (ref.meta?.set as string | undefined) ?? "unknown"
   const setLabel = POKEMON_SETS_BY_ID[setId]?.label ?? setId
   // Pull the name before the "—" (em-dash) as the short name,

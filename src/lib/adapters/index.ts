@@ -16,10 +16,16 @@ export const marketplaceAdapters: MarketplaceAdapter[] = [
 ]
 
 export const catalogAdapters: Record<Vertical, CatalogAdapter> = {
-  pokemon: cardmarketAdapter,
+  tcg: cardmarketAdapter,
   coins: numistaAdapter,
   games: stockxAdapter,
   shoes: stockxAdapter,
+  other: {
+    source: "heuristic",
+    label: "Euristica",
+    status: "live",
+    async lookup() { return null }
+  }
 }
 
 export { ebayAdapter, vintedAdapter, wallapopAdapter, subitoAdapter }

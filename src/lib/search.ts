@@ -97,10 +97,17 @@ export type SearchStreamEvent =
       vertical: import("@/lib/types").Vertical
       activePlatforms: Platform[]
       refCandidates: CatalogRef[]
+      customThresholds?: { deal?: number; bin?: number }
     }
-  | {
+    | {
       kind: "ref"
       ref: CatalogRef | null
+      customThresholds?: { 
+        deal?: number; 
+        bin?: number;
+        dealPriceCents?: number;
+        binPriceCents?: number;
+      }
     }
   | {
       kind: "chunk"
@@ -174,6 +181,7 @@ export async function* runSearchStream(
     vertical: params.vertical,
     activePlatforms: adapters.map((a) => a.platform),
     refCandidates: refCandidates.map((c) => ({ ...c })),
+    customThresholds: params.customThresholds,
   })
 
   // Start ref lookup immediately.
@@ -216,7 +224,46 @@ export async function* runSearchStream(
       pending.delete(taggedRef)
       resolvedRef = settled.ref
       refResolved = true
-      yield emit({ kind: "ref", ref: settled.ref })
+
+      // If we have a userId and a resolved product, fetch custom thresholds
+      if (params.userId && resolvedRef?.productId) {
+        try {
+          const { getUserThreshold } = await import("@/lib/actions/thresholds")
+          const custom = await getUserThreshold(resolvedRef.productId)
+          if (custom) {
+            // Convert absolute prices to deltas
+            const ref = resolvedRef.refPriceCents
+            if (custom.dealPriceCents) {
+               ;(params as any)._customDealPrice = custom.dealPriceCents
+               params.customThresholds = { 
+                 ...params.customThresholds, 
+                 deal: (ref - custom.dealPriceCents) / ref 
+               }
+            }
+            if (custom.binPriceCents) {
+               ;(params as any)._customBinPrice = custom.binPriceCents
+               params.customThresholds = { 
+                 ...params.customThresholds, 
+                 bin: (ref - custom.binPriceCents) / ref 
+               }
+            }
+          }
+        } catch (e) {
+          console.warn("[search] failed to fetch custom thresholds:", e)
+        }
+      }
+
+      yield emit({ 
+        kind: "ref", 
+        ref: settled.ref,
+        customThresholds: {
+          ...params.customThresholds,
+          // @ts-ignore - these were added in the try/catch block above if found in DB
+          dealPriceCents: (params as any)._customDealPrice,
+          // @ts-ignore
+          binPriceCents: (params as any)._customBinPrice,
+        }
+      })
       continue
     }
 
@@ -233,7 +280,7 @@ export async function* runSearchStream(
     const effectiveRef = resolvedRef?.refPriceCents ?? heuristicRef(runningPrices)
     const effectiveSource = resolvedRef?.refSource ?? "heuristic"
 
-    const scored = scoreAndRetag(relevant, effectiveRef, effectiveSource, params.vertical)
+    const scored = scoreAndRetag(relevant, effectiveRef, effectiveSource, params.vertical, params.customThresholds)
     const filteredScored = applyUserFilters(scored, params)
 
     const chunkListings: StreamedListing[] = []
@@ -294,6 +341,7 @@ async function resolveRef(params: SearchParams): Promise<CatalogRef | null> {
     kind: params.gameKind,
     platform: params.gamePlatform,
     pokemonSet: params.pokemonSet,
+    tcgGame: params.tcgGame,
   })
   if (!refHit) return null
   return {
@@ -315,7 +363,11 @@ function buildMarketplaceQuery(params: SearchParams): string {
     return refineGamesQuery(params.q, params.gameKind, params.gamePlatform)
   }
   if (params.vertical === "shoes") return refineShoesQuery(params.q, params.shoeSize)
-  if (params.vertical === "pokemon") return refinePokemonQuery(params.q, params.pokemonSet)
+  if (params.vertical === "tcg") {
+    if (params.tcgGame === "pokemon") return refinePokemonQuery(params.q, params.pokemonSet)
+    // For Magic/OnePiece we don't have a refiner yet, but we could add one.
+    return params.q
+  }
   return params.q
 }
 
@@ -374,10 +426,13 @@ function scoreAndRetag(
   effectiveRef: number,
   effectiveSource: import("@/lib/types").RefSource,
   vertical: import("@/lib/types").Vertical,
+  customThresholds?: { deal?: number; bin?: number }
 ): ScoredListing[] {
   return listings.map((l) => {
-    const score = scoreListing(l, effectiveRef, effectiveSource)
-    if (vertical === "pokemon" && isPokemonLottery(l.title)) {
+    const score = scoreListing(l, effectiveRef, effectiveSource, customThresholds)
+    const isPokemon = vertical === "tcg" && score.refSource === "cardmarket" // heuristic
+    // For now we only have lottery detection for Pokemon.
+    if (vertical === "tcg" && isPokemonLottery(l.title)) {
       return {
         ...l,
         score: {
@@ -431,11 +486,13 @@ function applyUserFilters(
   if (params.vertical === "games" && params.gameKind === "console") {
     out = out.filter((l) => l.score.tier !== "unknown")
   }
-  if (params.vertical === "pokemon") {
-    // Drop lotteries by default unless explicitly requested (exl=0).
-    const excludeLotteries = params.excludeLotteries !== false
-    if (excludeLotteries) {
-      out = out.filter((l) => l.score.flag !== "lottery")
+  if (params.vertical === "tcg") {
+    // Drop lotteries by default for Pokemon unless explicitly requested (exl=0).
+    if (params.tcgGame === "pokemon" || !params.tcgGame) {
+      const excludeLotteries = params.excludeLotteries !== false
+      if (excludeLotteries) {
+        out = out.filter((l) => l.score.flag !== "lottery")
+      }
     }
   }
   if (params.minPriceCents != null) {
@@ -497,6 +554,7 @@ function findCandidates(params: SearchParams, limit = 8): CatalogRef[] {
     kind: params.gameKind,
     platform: params.gamePlatform,
     pokemonSet: params.pokemonSet,
+    tcgGame: params.tcgGame,
   })
   const qTokens = params.q.trim().toLowerCase().split(/\s+/).filter(Boolean)
   if (qTokens.length === 0) return scope.slice(0, limit)

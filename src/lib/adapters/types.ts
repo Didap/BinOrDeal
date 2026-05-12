@@ -22,11 +22,12 @@ export interface CatalogLookupOpts {
   kind?: "console" | "game"
   platform?: string
   pokemonSet?: string
+  tcgGame?: "pokemon" | "mtg" | "onepiece"
   signal?: AbortSignal
 }
 
 export interface CatalogAdapter {
-  source: Exclude<RefSource, "heuristic">
+  source: RefSource
   label: string
   lookup: (
     query: string,

@@ -31,17 +31,19 @@ interface Props {
 export default async function SearchPage({ searchParams }: Props) {
   const sp = await searchParams
   const q = (sp.q ?? "").trim()
-  const vertical = ((sp.v as Vertical) ?? "pokemon") as Vertical
+  let vertical = ((sp.v as Vertical) ?? "tcg") as Vertical
+  // Legacy fallback: if URL has v=pokemon, map to v=tcg
+  if ((sp.v as string) === "pokemon") vertical = "tcg"
+
   const sort =
     (sp.s as "score" | "price-asc" | "price-desc" | "posted-desc" | undefined) ??
     "score"
+  const tcgGame = (sp.game as "pokemon" | "mtg" | "onepiece" | undefined) ?? (vertical === "tcg" ? "pokemon" : undefined)
   const gameKind = (sp.kind as "console" | "game" | undefined) ?? undefined
   const gamePlatform = sp.platform ?? undefined
   const shoeSize = sp.size ?? undefined
   const shoeGender = (sp.gender as "uomo" | "donna" | "unisex" | undefined) ?? undefined
   const pokemonSet = sp.set ?? undefined
-  // `exl=0` means user opted into seeing lotteries (flagged). Anything else
-  // (including missing) keeps the default-on exclusion.
   const excludeLotteries = sp.exl !== "0"
 
   // Forward exactly the params we know about to the streaming endpoint —
@@ -96,6 +98,7 @@ export default async function SearchPage({ searchParams }: Props) {
           <SearchBox
             initialQuery={q}
             initialVertical={vertical}
+            initialTcgGame={tcgGame}
             initialGameKind={gameKind}
             initialGamePlatform={gamePlatform}
             initialShoeSize={shoeSize}
@@ -109,7 +112,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
       <main className="mx-auto max-w-[1440px] px-5 sm:px-8 py-10 relative z-10">
         {!q ? (
-          <EmptyState vertical={vertical} />
+          <EmptyState vertical={vertical} tcgGame={tcgGame} />
         ) : !quota.allowed ? (
           <QuotaGate status={quota} />
         ) : (
@@ -126,8 +129,8 @@ export default async function SearchPage({ searchParams }: Props) {
   )
 }
 
-function EmptyState({ vertical }: { vertical: Vertical }) {
-  const entries = allCatalogEntries(vertical).slice(0, 6)
+function EmptyState({ vertical, tcgGame }: { vertical: Vertical; tcgGame?: string }) {
+  const entries = allCatalogEntries(vertical, { tcgGame: tcgGame as any }).slice(0, 6)
   return (
     <div className="max-w-3xl mx-auto py-10">
       <p className="text-lg text-ink-soft">

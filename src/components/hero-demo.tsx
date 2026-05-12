@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/format"
 export async function HeroDemo() {
   const result = await runSearch({
     q: "charizard",
-    vertical: "pokemon",
+    vertical: "tcg",
     sort: "score",
   })
   const best = result.listings.slice(0, 3)

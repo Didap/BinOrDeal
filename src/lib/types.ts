@@ -1,4 +1,4 @@
-export type Vertical = "pokemon" | "coins" | "games" | "shoes"
+export type Vertical = "tcg" | "coins" | "games" | "shoes" | "other"
 
 export type Platform = "ebay" | "vinted" | "wallapop" | "subito"
 
@@ -93,6 +93,8 @@ export interface SearchParams {
   shoeSize?: string
   /** Shoes vertical: target gender (uomo/donna/unisex). */
   shoeGender?: "uomo" | "donna" | "unisex"
+  /** TCG vertical: specific game subcategory. */
+  tcgGame?: "pokemon" | "mtg" | "onepiece"
   /** Pokémon vertical: set id (e.g. "base-set", "evolving-skies"). */
   pokemonSet?: string
   /** Override: force a specific catalog productId as the reference
@@ -103,6 +105,10 @@ export interface SearchParams {
    *  looking listings are kept but flagged. Default semantics is "true"
    *  for pokemon if not explicitly set; ignored for other verticals. */
   excludeLotteries?: boolean
+  /** Optional user-defined thresholds (deltas) for this specific search. */
+  customThresholds?: { deal?: number; bin?: number }
+  /** User ID for fetching personalized settings. */
+  userId?: string
 }
 
 export interface SearchResult {

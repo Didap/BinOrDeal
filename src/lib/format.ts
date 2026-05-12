@@ -38,10 +38,11 @@ export const PLATFORM_LABELS: Record<string, string> = {
 }
 
 export const VERTICAL_LABELS: Record<string, string> = {
-  pokemon: "Carte Pokémon",
+  tcg: "Carte Collezionabili",
   coins: "Monete",
   games: "Console & Videogiochi",
   shoes: "Scarpe",
+  other: "Altro",
 }
 
 export const CONDITION_LABELS: Record<string, string> = {

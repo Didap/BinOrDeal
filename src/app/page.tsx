@@ -8,9 +8,10 @@ import { Sparkline } from "@/components/sparkline"
 
 const SUGGESTIONS = [
   "charizard base set",
-  "playstation 5 pro",
+  "black lotus alpha",
+  "shanks manga",
   "jordan 1 chicago",
-  "nintendo switch 2",
+  "playstation 5 pro",
   "2 euro grecia 2004",
 ]
 
@@ -61,8 +62,8 @@ export default function HomePage() {
               {/* Stats strip */}
               <div className="mt-16 grid grid-cols-1 xs:grid-cols-3 gap-8 xs:gap-6 border-t-2 border-ink pt-6">
                 <Stat n="4" label="Marketplace" sub="aggregati in parallelo" />
-                <Stat n="2" label="Verticali" sub="Pokémon · Monete" />
-                <Stat n="0" label="Annunci storicizzati" sub="zero caching" />
+                <Stat n="6" label="Verticali" sub="TCG · Monete · Scarpe · Games" />
+                <Stat n="30k+" label="Catalog Ref" sub="prezzi di riferimento" />
               </div>
             </div>
 
@@ -74,6 +75,49 @@ export default function HomePage() {
             </div>
           </div>
 
+        </section>
+
+        {/* CATEGORIES */}
+        <section className="bg-paper-deep border-y-2 border-ink">
+          <div className="mx-auto max-w-[1440px] px-5 sm:px-8 py-20">
+            <div className="flex items-baseline justify-between gap-4 flex-wrap mb-10">
+              <h2 className="display text-4xl sm:text-5xl font-black tracking-tightest">
+                Scegli la verticale.<br />
+                <span className="italic font-light text-ink-muted">Valore garantito.</span>
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <CategoryCard
+                title="Carte Collezionabili"
+                desc="Pokémon, Magic, One Piece. Scoring live contro Cardmarket."
+                v="tcg"
+                icon="🃏"
+                tags={["Pokémon", "MTG", "One Piece"]}
+              />
+              <CategoryCard
+                title="Scarpe & Sneakers"
+                desc="Jordan, Dunk, Yeezy. Prezzi reference da StockX (Last Sale)."
+                v="shoes"
+                icon="👟"
+                tags={["Jordan", "Nike", "Adidas"]}
+              />
+              <CategoryCard
+                title="Console & Games"
+                desc="Retro-gaming e modern. Prezzi PriceCharting & StockX."
+                v="games"
+                icon="🎮"
+                tags={["Retro", "PS5", "Nintendo"]}
+              />
+              <CategoryCard
+                title="Numismatica"
+                desc="Monete rare e argento. Reference Numista + Spot price."
+                v="coins"
+                icon="🪙"
+                tags={["Euro", "Lire", "Argento"]}
+              />
+            </div>
+          </div>
         </section>
 
         {/* HOW IT WORKS */}
@@ -442,5 +486,49 @@ function PriceCard({
         {featured ? "Diventa Pro →" : "Inizia gratis"}
       </button>
     </div>
+  )
+}
+
+function CategoryCard({
+  title,
+  desc,
+  v,
+  icon,
+  tags,
+}: {
+  title: string
+  desc: string
+  v: string
+  icon: string
+  tags: string[]
+}) {
+  return (
+    <Link
+      href={`/search?v=${v}`}
+      className="group bg-paper border-2 border-ink p-6 hover:bg-ink hover:text-paper transition-all relative overflow-hidden"
+    >
+      <div className="text-4xl mb-4 group-hover:scale-110 transition-transform inline-block">
+        {icon}
+      </div>
+      <h3 className="display text-2xl font-black tracking-tightest leading-tight">
+        {title}
+      </h3>
+      <p className="mt-2 text-sm opacity-70 leading-snug">
+        {desc}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {tags.map((t) => (
+          <span
+            key={t}
+            className="font-mono text-[9px] uppercase tracking-wider border border-current px-1.5 py-0.5 opacity-60"
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+      <div className="absolute bottom-4 right-4 translate-x-8 group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all font-mono text-[10px] uppercase">
+        Esplora →
+      </div>
+    </Link>
   )
 }

@@ -155,10 +155,39 @@ export const searchLogs = pgTable(
   ]
 )
 
+/**
+ * User custom thresholds — overrides for specific products.
+ * Allows users to say "for me, Charizard is a deal at €150" even if
+ * market is €200.
+ */
+export const userThresholds = pgTable(
+  "user_thresholds",
+  {
+    id: text("id").primaryKey(), // uuid
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id").notNull(), // catalog id or query-based id
+    dealPriceCents: integer("deal_price_cents"),
+    binPriceCents: integer("bin_price_cents"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("user_thresholds_user_product_idx").on(t.userId, t.productId),
+  ]
+)
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type SearchLog = typeof searchLogs.$inferSelect
 export type NewSearchLog = typeof searchLogs.$inferInsert
+export type UserThreshold = typeof userThresholds.$inferSelect
+export type NewUserThreshold = typeof userThresholds.$inferInsert
 
 export type PokemonSet = typeof pokemonSets.$inferSelect
 export type PokemonCard = typeof pokemonCards.$inferSelect

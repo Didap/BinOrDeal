@@ -54,7 +54,7 @@ const CONDITIONS = [
 /** Pokemon card cover image (Unsplash / Pokemon TCG images are not redistributable -
  *  we use generic colored svg placeholders server-rendered). */
 function cardThumb(seed: number, vertical: Vertical): string {
-  const hues = vertical === "pokemon"
+  const hues = vertical === "tcg"
     ? [14, 40, 170, 210, 280, 320]
     : [30, 45, 60, 200, 220]
   const h = hues[seed % hues.length]
@@ -169,7 +169,7 @@ export function generateListings(opts: GenOpts): Listing[] {
         ratings: Math.floor(rand() * 900) + 4,
       },
       meta:
-        vertical === "pokemon"
+        vertical === "tcg"
           ? { set: "Base Set", language: pickLang(rand) }
           : { year: 1958 + Math.floor(rand() * 60), metal: pickMetal(rand) },
     })
@@ -192,7 +192,7 @@ function makeTitle(
   rand: () => number,
 ): string {
   const q = query.toUpperCase()
-  if (vertical === "pokemon") {
+  if (vertical === "tcg") {
     const langs = ["ITA", "ENG", "GER", "FRA", "JPN"]
     const exts = [
       "base set unlimited",
