@@ -48,10 +48,26 @@ RUN npm run build
 
 FROM mcr.microsoft.com/playwright:v1.59.1-jammy AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
 # Disable Next.js telemetry during runtime
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Re-declare ARGs for runtime environment if needed (baked into client, but needed for server-side)
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_POSTHOG_KEY
+ARG NEXT_PUBLIC_POSTHOG_HOST
+ARG DATABASE_URL
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
+ENV NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
+ENV DATABASE_URL=$DATABASE_URL
 
 # Copy standalone output (includes node_modules and server.js)
 COPY --from=builder /app/.next/standalone ./
