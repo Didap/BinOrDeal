@@ -21,6 +21,11 @@ const UA =
 let browserPromise: Promise<Browser> | null = null
 
 async function launch(): Promise<Browser> {
+  // Never launch browser during Next.js build phase to avoid OOM
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    throw new Error("Browser launch skipped during build phase")
+  }
+
   const { chromium } = await import("playwright")
   return chromium.launch({
     headless: true,

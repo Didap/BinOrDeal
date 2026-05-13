@@ -2,14 +2,29 @@ import { runSearch } from "@/lib/search"
 import { ListingCard } from "@/components/listing-card"
 import { ScoreBadge } from "@/components/score-badge"
 import { formatPrice } from "@/lib/format"
+import type { SearchResult, ScoredListing } from "@/lib/types"
 
 export async function HeroDemo() {
-  const result = await runSearch({
-    q: "charizard",
-    vertical: "tcg",
-    sort: "score",
-  })
-  const best = result.listings.slice(0, 3)
+  let result: SearchResult;
+  try {
+    result = await runSearch({
+      q: "charizard",
+      vertical: "tcg",
+      sort: "score",
+    })
+  } catch (e) {
+    console.warn("[hero-demo] build-time search failed, falling back to empty:", e);
+    result = { 
+      query: "charizard",
+      vertical: "tcg",
+      listings: [], 
+      ref: null, 
+      refCandidates: [],
+      fetchedAt: new Date().toISOString(),
+      tallies: { deal: 0, fair: 0, bin: 0 } 
+    };
+  }
+  const best: ScoredListing[] = (result.listings || []).slice(0, 3)
   const ref = result.ref
 
   return (
@@ -40,7 +55,7 @@ export async function HeroDemo() {
       </div>
 
       <div className="space-y-3">
-        {best.map((l, i) => (
+        {best.map((l: ScoredListing, i: number) => (
           <ListingCard key={l.id} listing={l} index={i} variant="compact" />
         ))}
       </div>

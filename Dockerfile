@@ -50,11 +50,14 @@ FROM mcr.microsoft.com/playwright:v1.59.1-jammy AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
-# The Next standalone output lives at .next/standalone — run node server.js
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
+# Disable Next.js telemetry during runtime
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy standalone output (includes node_modules and server.js)
+COPY --from=builder /app/.next/standalone ./
+# Copy static assets
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
-CMD ["npx", "next", "start", "-p", "3000"]
+# Standalone mode runs via server.js
+CMD ["node", "server.js"]
