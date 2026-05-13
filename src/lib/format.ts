@@ -35,6 +35,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
   vinted: "Vinted",
   wallapop: "Wallapop",
   subito: "Subito",
+  facebook: "Facebook",
 }
 
 export const VERTICAL_LABELS: Record<string, string> = {

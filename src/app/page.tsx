@@ -48,7 +48,8 @@ export default function HomePage() {
 
               <p className="mt-6 max-w-[60ch] text-lg sm:text-xl text-ink-soft leading-snug">
                 La domanda che ogni collezionista si fa davanti a un annuncio su
-                Vinted, eBay, Subito, Wallapop.{" "}
+                La domanda che ogni collezionista si fa davanti a un annuncio su
+                Vinted, eBay, Subito, Wallapop, Facebook.{" "}
                 <span className="marker">Risponde il prodotto,</span> non il tuo
                 stomaco. Scoring automatico contro Cardmarket e Numista —{" "}
                 <em className="display italic">ogni euro ha un verdetto</em>.
@@ -61,7 +62,7 @@ export default function HomePage() {
 
               {/* Stats strip */}
               <div className="mt-16 grid grid-cols-1 xs:grid-cols-3 gap-8 xs:gap-6 border-t-2 border-ink pt-6">
-                <Stat n="4" label="Marketplace" sub="aggregati in parallelo" />
+                <Stat n="5" label="Marketplace" sub="aggregati in parallelo" />
                 <Stat n="6" label="Verticali" sub="TCG · Monete · Scarpe · Games" />
                 <Stat n="30k+" label="Catalog Ref" sub="prezzi di riferimento" />
               </div>

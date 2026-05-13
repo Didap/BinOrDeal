@@ -1,6 +1,7 @@
 "use client"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
+import * as React from "react"
+import { useState, useTransition, useEffect } from "react"
 import posthog from "posthog-js"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/cn"
@@ -22,6 +23,7 @@ interface Props {
   initialTcgGame?: "pokemon" | "mtg" | "onepiece"
   initialPokemonSet?: string
   initialExcludeLotteries?: boolean
+  initialPlatforms?: import("@/lib/types").Platform[]
   size?: "hero" | "compact"
   placeholder?: string
   suggestions?: string[]
@@ -37,6 +39,7 @@ export function SearchBox({
   initialShoeGender,
   initialPokemonSet,
   initialExcludeLotteries = true,
+  initialPlatforms,
   size = "hero",
   placeholder,
   suggestions = [],
@@ -53,6 +56,24 @@ export function SearchBox({
   const [shoeGender, setShoeGender] = useState<ShoeGender | "any">(initialShoeGender ?? "any")
   const [pokemonSet, setPokemonSet] = useState<string>(initialPokemonSet ?? "any")
   const [excludeLotteries, setExcludeLotteries] = useState(initialExcludeLotteries)
+  
+  // Platform preferences state
+  const [platforms, setPlatforms] = useState<import("@/lib/types").Platform[]>(() => {
+    if (initialPlatforms) return initialPlatforms
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("pref_platforms")
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch {}
+      }
+    }
+    return ["ebay", "vinted", "wallapop", "subito", "facebook"]
+  })
+
+  useEffect(() => {
+    localStorage.setItem("pref_platforms", JSON.stringify(platforms))
+  }, [platforms])
 
   const isTcg = vertical === "tcg"
   const defaultPlaceholder =
@@ -88,9 +109,16 @@ export function SearchBox({
         params.set("exl", "0")
       }
     }
+    
+    // Add platform filter if not all are selected
+    if (platforms.length < 5) {
+      params.set("p", platforms.join(","))
+    }
+
     posthog.capture("search_submit", {
       query: trimmed,
       vertical,
+      platforms,
     })
     startTransition(() => {
       router.push(`/search?${params.toString()}`)
@@ -158,37 +186,39 @@ export function SearchBox({
             </>
           )}
         </button>
-
-        {/* Autocomplete portals could go here if needed, keeping it simple for now */}
       </form>
 
       {/* Refiner strips — stack on mobile */}
-      {vertical === "games" && (
-        <GamesRefiner
-          kind={gameKind}
-          onKindChange={setGameKind}
-          platform={gamePlatform}
-          onPlatformChange={setGamePlatform}
-        />
-      )}
-      {vertical === "shoes" && (
-        <ShoesRefiner
-          shoeSize={shoeSize}
-          onShoeSizeChange={setShoeSize}
-          gender={shoeGender}
-          onGenderChange={setShoeGender}
-        />
-      )}
-      {isTcg && (
-        <TcgRefiner
-          game={tcgGame}
-          onGameChange={setTcgGame}
-          pokemonSet={pokemonSet}
-          onPokemonSetChange={setPokemonSet}
-          excludeLotteries={excludeLotteries}
-          onExcludeLotteriesChange={setExcludeLotteries}
-        />
-      )}
+      <div className="flex flex-col gap-2">
+        {vertical === "games" && (
+          <GamesRefiner
+            kind={gameKind}
+            onKindChange={setGameKind}
+            platform={gamePlatform}
+            onPlatformChange={setGamePlatform}
+          />
+        )}
+        {vertical === "shoes" && (
+          <ShoesRefiner
+            shoeSize={shoeSize}
+            onShoeSizeChange={setShoeSize}
+            gender={shoeGender}
+            onGenderChange={setShoeGender}
+          />
+        )}
+        {isTcg && (
+          <TcgRefiner
+            game={tcgGame}
+            onGameChange={setTcgGame}
+            pokemonSet={pokemonSet}
+            onPokemonSetChange={setPokemonSet}
+            excludeLotteries={excludeLotteries}
+            onExcludeLotteriesChange={setExcludeLotteries}
+          />
+        )}
+
+        <PlatformRefiner selected={platforms} onChange={setPlatforms} />
+      </div>
 
       {/* Suggestions — wrap aggressively */}
       {suggestions.length > 0 && (
@@ -382,6 +412,55 @@ function TcgRefiner({
           </span>
         </label>
       )}
+    </div>
+  )
+}
+
+function PlatformRefiner({
+  selected,
+  onChange,
+}: {
+  selected: import("@/lib/types").Platform[]
+  onChange: (p: import("@/lib/types").Platform[]) => void
+}) {
+  const platforms: { id: import("@/lib/types").Platform; label: string }[] = [
+    { id: "ebay", label: "eBay" },
+    { id: "vinted", label: "Vinted" },
+    { id: "wallapop", label: "Wallapop" },
+    { id: "subito", label: "Subito" },
+    { id: "facebook", label: "FB Market" },
+  ]
+
+  const toggle = (id: import("@/lib/types").Platform) => {
+    if (selected.includes(id)) {
+      if (selected.length > 1) {
+        onChange(selected.filter((p) => p !== id))
+      }
+    } else {
+      onChange([...selected, id])
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-2 border-ink bg-paper-deep p-2 xs:px-3 xs:py-2">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted mr-1">Mercati</span>
+      <div className="flex flex-wrap gap-2">
+        {platforms.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => toggle(p.id)}
+            className={cn(
+              "px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest border-2 transition-colors",
+              selected.includes(p.id)
+                ? "bg-ink text-paper border-ink font-bold"
+                : "bg-surface text-ink-muted border-line-strong hover:border-ink",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

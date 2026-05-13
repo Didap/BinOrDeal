@@ -1,7 +1,7 @@
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { db } from "@/db/client"
 import { searchLogs, users } from "@/db/schema"
-import { count, eq, and, gt, desc, isNull } from "drizzle-orm"
+import { count, eq, and, gt, isNull, or } from "drizzle-orm"
 import { randomUUID } from "crypto"
 
 const ANONYMOUS_QUOTA = 3
@@ -15,9 +15,20 @@ export type QuotaStatus = {
   reason?: "limit_reached" | "auth_required"
 }
 
+async function getClientIp() {
+  const h = await headers()
+  const xForwardedFor = h.get("x-forwarded-for")
+  if (xForwardedFor) {
+    // x-forwarded-for can be a list of IPs if there are multiple proxies
+    return xForwardedFor.split(",")[0].trim()
+  }
+  return h.get("x-real-ip") ?? "unknown"
+}
+
 export async function checkSearchQuota(userId?: string, userEmail?: string): Promise<QuotaStatus> {
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("bid_session_id")?.value ?? "unknown"
+  const clientIp = await getClientIp()
 
   if (!db) {
     return { allowed: true, remaining: 1, total: 1, tier: "anonymous" }
@@ -28,12 +39,7 @@ export async function checkSearchQuota(userId?: string, userEmail?: string): Pro
     if (userId) {
       let [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
       
-      // Auto-provision user if they exist in Auth but not in our users table
       if (!user) {
-        // We might need the email here. For now let's try to get it or use a placeholder
-        // In a real app, you'd get this from the session/user object passed in.
-        // For now, I'll just insert with a placeholder or handle it.
-        // Actually, let's assume we want to insert them.
         try {
           const [newUser] = await db.insert(users).values({
             id: userId,
@@ -72,14 +78,18 @@ export async function checkSearchQuota(userId?: string, userEmail?: string): Pro
       }
     }
 
-    // 2. Anonymous: check session quota
+    // 2. Anonymous: check session OR IP quota
+    // This prevents bypassing limits by clearing cookies (session_id)
     const [sessionCount] = await db
       .select({ val: count() })
       .from(searchLogs)
       .where(
         and(
-          eq(searchLogs.sessionId, sessionId),
-          isNull(searchLogs.userId)
+          isNull(searchLogs.userId),
+          or(
+            eq(searchLogs.sessionId, sessionId),
+            eq(searchLogs.userIp, clientIp)
+          )
         )
       )
 
@@ -92,8 +102,7 @@ export async function checkSearchQuota(userId?: string, userEmail?: string): Pro
       reason: remaining <= 0 ? "auth_required" : undefined
     }
   } catch (error) {
-    console.error("Quota check failed (DB likely not connected):", error)
-    // Fallback: allow search if DB is down to not block dev/prod
+    console.error("Quota check failed:", error)
     return { allowed: true, remaining: 1, total: 1, tier: "anonymous" }
   }
 }
@@ -108,11 +117,13 @@ export async function logSearch(params: {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("bid_session_id")?.value ?? "unknown"
+    const clientIp = await getClientIp()
 
     await db.insert(searchLogs).values({
       id: randomUUID(),
       userId: params.userId ?? null,
       sessionId,
+      userIp: clientIp,
       query: params.query,
       vertical: params.vertical,
     })

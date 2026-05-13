@@ -1,6 +1,6 @@
 export type Vertical = "tcg" | "coins" | "games" | "shoes" | "other"
 
-export type Platform = "ebay" | "vinted" | "wallapop" | "subito"
+export type Platform = "ebay" | "vinted" | "wallapop" | "subito" | "facebook"
 
 export type Currency = "EUR" | "USD" | "GBP"
 

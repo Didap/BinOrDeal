@@ -514,7 +514,7 @@ function applyFiltersAndSort(
 ): ScoredListing[] {
   const filtered = applyUserFilters(scored, params)
   const sort = params.sort ?? "score"
-  return [...filtered].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     switch (sort) {
       case "price-asc":
         return a.priceCents - b.priceCents
@@ -532,6 +532,91 @@ function applyFiltersAndSort(
       }
     }
   })
+
+  // If sorting by score (default), apply interleaving to avoid platform clumping
+  if (sort === "score") {
+    return interleaveListings(sorted)
+  }
+
+  return sorted
+}
+
+/**
+ * Interleave results from different platforms to ensure variety.
+ * Preserves the broad sort order (Tiers: deal -> fair -> bin) but
+ * alternates sources within those tiers.
+ */
+function interleaveListings(listings: ScoredListing[]): ScoredListing[] {
+  if (listings.length <= 1) return listings
+
+  // 1. Group by Tier (preserve primary sort)
+  const tiers: Record<string, ScoredListing[]> = { deal: [], fair: [], bin: [], unknown: [] }
+  for (const l of listings) {
+    const tier = l.score.tier
+    if (tiers[tier]) tiers[tier].push(l)
+    else tiers.unknown.push(l)
+  }
+
+  const result: ScoredListing[] = []
+
+  // 2. For each tier, interleave platforms
+  for (const tier of ["deal", "fair", "bin", "unknown"]) {
+    const tierListings = tiers[tier]
+    if (tierListings.length === 0) continue
+
+    // Group items in this tier by platform
+    const platformGroups: Map<string, ScoredListing[]> = new Map()
+    for (const l of tierListings) {
+      if (!platformGroups.has(l.platform)) platformGroups.set(l.platform, [])
+      platformGroups.get(l.platform)!.push(l)
+    }
+
+    const platforms = Array.from(platformGroups.keys())
+    let currentIdx = 0
+    let consecutiveCount = 0
+    let lastPlatform = ""
+
+    const tierResult: ScoredListing[] = []
+    const total = tierListings.length
+
+    while (tierResult.length < total) {
+      let found = false
+      // Iterate through platforms round-robin
+      for (let i = 0; i < platforms.length; i++) {
+        const pIdx = (currentIdx + i) % platforms.length
+        const p = platforms[pIdx]
+        const group = platformGroups.get(p)!
+
+        if (group.length > 0) {
+          // Cap of 2 consecutive items from same platform
+          if (p === lastPlatform && consecutiveCount >= 2) {
+            const hasOther = platforms.some(
+              (op) => op !== p && platformGroups.get(op)!.length > 0,
+            )
+            if (hasOther) continue
+          }
+
+          const item = group.shift()!
+          tierResult.push(item)
+
+          if (p === lastPlatform) {
+            consecutiveCount++
+          } else {
+            lastPlatform = p
+            consecutiveCount = 1
+          }
+
+          currentIdx = (pIdx + 1) % platforms.length
+          found = true
+          break
+        }
+      }
+      if (!found) break
+    }
+    result.push(...tierResult)
+  }
+
+  return result
 }
 
 function heuristicRef(prices: number[]): number {

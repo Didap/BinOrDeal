@@ -224,6 +224,7 @@ function pickSeller(rand: () => number, platform: Platform): string {
     vinted: ["luca_collector", "giuliapk", "marco.cards", "paolinanum"],
     wallapop: ["colecciona_es", "cartas_madrid", "monedas_bcn"],
     subito: ["andrea.torino", "francesco_na", "elena.collezioni", "simone_rc"],
+    facebook: ["Marketplace User", "Gruppo Pokémon Italia", "Collezionista Privato"],
   } as const
   const arr = bases[platform]
   return arr[Math.floor(rand() * arr.length)]

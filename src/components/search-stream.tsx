@@ -76,7 +76,7 @@ function makeInitial(): State {
   }
 }
 
-const FALLBACK_PLATFORMS: Platform[] = ["subito", "vinted", "wallapop", "ebay"]
+const FALLBACK_PLATFORMS: Platform[] = ["ebay", "vinted", "wallapop", "subito", "facebook"]
 
 export function SearchStream({ query, sort, statusStrip }: Props) {
   const [state, setState] = useState<State>(makeInitial)

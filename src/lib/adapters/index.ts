@@ -5,6 +5,7 @@ import { subitoAdapter } from "./subito"
 import { cardmarketAdapter } from "./cardmarket"
 import { numistaAdapter } from "./numista"
 import { stockxAdapter } from "./stockx"
+import { facebookAdapter } from "./facebook"
 import type { MarketplaceAdapter, CatalogAdapter } from "./types"
 import type { Vertical } from "@/lib/types"
 
@@ -13,6 +14,7 @@ export const marketplaceAdapters: MarketplaceAdapter[] = [
   vintedAdapter,
   wallapopAdapter,
   subitoAdapter,
+  facebookAdapter,
 ]
 
 export const catalogAdapters: Record<Vertical, CatalogAdapter> = {
@@ -28,5 +30,13 @@ export const catalogAdapters: Record<Vertical, CatalogAdapter> = {
   }
 }
 
-export { ebayAdapter, vintedAdapter, wallapopAdapter, subitoAdapter }
-export { cardmarketAdapter, numistaAdapter, stockxAdapter }
+export { 
+  ebayAdapter, 
+  vintedAdapter, 
+  wallapopAdapter, 
+  subitoAdapter, 
+  facebookAdapter,
+  cardmarketAdapter, 
+  numistaAdapter, 
+  stockxAdapter 
+}

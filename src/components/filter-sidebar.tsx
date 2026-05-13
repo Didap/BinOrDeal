@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn"
 import type { Platform, ScoreTier } from "@/lib/types"
 import { PLATFORM_LABELS, TIER_LABELS } from "@/lib/format"
 
-const ALL_PLATFORMS: Platform[] = ["ebay", "vinted", "wallapop", "subito"]
+const ALL_PLATFORMS: Platform[] = ["ebay", "vinted", "wallapop", "subito", "facebook"]
 const FILTERABLE_TIERS = ["deal", "fair", "bin"] as const
 
 interface Props {

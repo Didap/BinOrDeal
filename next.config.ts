@@ -1,7 +1,7 @@
 import type { NextConfig } from "next"
 
 const config: NextConfig = {
-  output: "standalone",
+  output: process.env.NODE_ENV === "production" ? "standalone" : undefined,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

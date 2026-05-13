@@ -45,6 +45,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const shoeGender = (sp.gender as "uomo" | "donna" | "unisex" | undefined) ?? undefined
   const pokemonSet = sp.set ?? undefined
   const excludeLotteries = sp.exl !== "0"
+  const initialPlatforms = sp.p ? (sp.p.split(",") as import("@/lib/types").Platform[]) : undefined
 
   // Forward exactly the params we know about to the streaming endpoint —
   // skip empty ones so the URL stays stable for caching/dedupe in the client.
@@ -105,6 +106,7 @@ export default async function SearchPage({ searchParams }: Props) {
             initialShoeGender={shoeGender}
             initialPokemonSet={pokemonSet}
             initialExcludeLotteries={excludeLotteries}
+            initialPlatforms={initialPlatforms}
             size="compact"
           />
         </div>

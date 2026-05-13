@@ -142,6 +142,7 @@ export const searchLogs = pgTable(
     id: text("id").primaryKey(), // uuid
     userId: text("user_id"), // null for anonymous searches
     sessionId: text("session_id").notNull(), // for anonymous quota tracking
+    userIp: text("user_ip"), // for anonymous quota tracking by IP
     query: text("query").notNull(),
     vertical: text("vertical").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -151,6 +152,7 @@ export const searchLogs = pgTable(
   (t) => [
     index("search_logs_user_idx").on(t.userId),
     index("search_logs_session_idx").on(t.sessionId),
+    index("search_logs_ip_idx").on(t.userIp),
     index("search_logs_created_idx").on(t.createdAt),
   ]
 )
