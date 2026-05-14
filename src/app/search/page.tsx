@@ -82,7 +82,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
       {/* Compact hero with search */}
       <section className="border-b-2 border-ink bg-surface relative">
-        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 py-8 grid gap-5">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 py-4 sm:py-8 grid gap-5">
           <div className="flex items-baseline justify-between gap-4 flex-wrap">
             <div>
               <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-muted">

@@ -97,28 +97,28 @@ export default async function AdminUserDetailPage({ params }: Props) {
           "use server"
           const { updateUserAction } = await import("@/app/admin/actions")
           await updateUserAction(user.id, formData)
-        }} className="flex flex-wrap items-end gap-6 pt-2">
-          <div className="space-y-2">
+        }} className="grid sm:flex sm:items-end gap-6 pt-2">
+          <div className="space-y-2 flex-1 min-w-[200px]">
             <label className="block font-mono text-[10px] uppercase tracking-widest text-ink-muted">
               Tier (Abbonamento)
             </label>
             <select
               name="tier"
               defaultValue={user.tier}
-              className="h-10 border-2 border-ink bg-surface px-3 font-mono text-[11px] uppercase outline-none focus:border-deal"
+              className="w-full h-10 border-2 border-ink bg-surface px-3 font-mono text-[11px] uppercase outline-none focus:border-deal"
             >
               <option value="free">Free (Limitato)</option>
               <option value="pro">Pro (Illimitato)</option>
             </select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 min-w-[200px]">
             <label className="block font-mono text-[10px] uppercase tracking-widest text-ink-muted">
               Ruolo (Permessi)
             </label>
             <select
               name="role"
               defaultValue={user.role}
-              className="h-10 border-2 border-ink bg-surface px-3 font-mono text-[11px] uppercase outline-none focus:border-hot"
+              className="w-full h-10 border-2 border-ink bg-surface px-3 font-mono text-[11px] uppercase outline-none focus:border-hot"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>

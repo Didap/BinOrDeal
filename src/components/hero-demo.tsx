@@ -1,30 +1,90 @@
-import { runSearch } from "@/lib/search"
 import { ListingCard } from "@/components/listing-card"
 import { ScoreBadge } from "@/components/score-badge"
 import { formatPrice } from "@/lib/format"
 import type { SearchResult, ScoredListing } from "@/lib/types"
 
-export async function HeroDemo() {
-  let result: SearchResult;
-  try {
-    result = await runSearch({
-      q: "charizard",
+export function HeroDemo() {
+  // Use static mock data for the hero demo to avoid slow live searches on every home page visit.
+  // The delay was primarily caused by the Wallapop adapter (Playwright) which takes ~5-10s.
+  const result: SearchResult = {
+    query: "charizard",
+    vertical: "tcg",
+    listings: [
+      {
+        id: "mock-1",
+        title: "Charizard Base Set Unlimited - Near Mint",
+        priceCents: 28500,
+        currency: "EUR",
+        platform: "vinted",
+        url: "#",
+        thumbnail: "https://images.pokemontcg.io/base1/4_hires.png",
+        postedAt: new Date().toISOString(),
+        country: "IT",
+        condition: "near-mint",
+        provenance: "fallback",
+        score: {
+          tier: "deal",
+          delta: 0.22,
+          percent: 22,
+          ref: 36500,
+          refSource: "cardmarket",
+        }
+      },
+      {
+        id: "mock-2",
+        title: "Charizard 4/102 Base Set Holo Rare",
+        priceCents: 34000,
+        currency: "EUR",
+        platform: "ebay",
+        url: "#",
+        thumbnail: "https://images.pokemontcg.io/base1/4_hires.png",
+        postedAt: new Date().toISOString(),
+        country: "EU",
+        condition: "excellent",
+        provenance: "fallback",
+        score: {
+          tier: "fair",
+          delta: 0.07,
+          percent: 7,
+          ref: 36500,
+          refSource: "cardmarket",
+        }
+      },
+      {
+        id: "mock-3",
+        title: "Charizard Set Base Ita 4/102",
+        priceCents: 41000,
+        currency: "EUR",
+        platform: "subito",
+        url: "#",
+        thumbnail: "https://images.pokemontcg.io/base1/4_hires.png",
+        postedAt: new Date().toISOString(),
+        country: "IT",
+        condition: "good",
+        provenance: "fallback",
+        score: {
+          tier: "bin",
+          delta: -0.12,
+          percent: -12,
+          ref: 36500,
+          refSource: "cardmarket",
+        }
+      }
+    ] as ScoredListing[],
+    ref: {
       vertical: "tcg",
-      sort: "score",
-    })
-  } catch (e) {
-    console.warn("[hero-demo] build-time search failed, falling back to empty:", e);
-    result = { 
       query: "charizard",
-      vertical: "tcg",
-      listings: [], 
-      ref: null, 
-      refCandidates: [],
-      fetchedAt: new Date().toISOString(),
-      tallies: { deal: 0, fair: 0, bin: 0 } 
-    };
-  }
-  const best: ScoredListing[] = (result.listings || []).slice(0, 3)
+      refPriceCents: 36500,
+      refSource: "cardmarket",
+      productName: "Charizard (Base Set #4)",
+      productId: "pkmn-base-4"
+    },
+    refCandidates: [],
+    fetchedAt: new Date().toISOString(),
+    tallies: { deal: 1, fair: 1, bin: 1 }
+  };
+
+  const best = result.listings
   const ref = result.ref
 
   return (

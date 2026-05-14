@@ -49,11 +49,11 @@ export function FilterSidebar({ tallies, className }: Props) {
   return (
     <>
       {/* Mobile Toggle Button */}
-      <div className="lg:hidden sticky top-[68px] z-30 -mx-5 sm:-mx-8 px-5 sm:px-8 py-3 bg-paper/80 backdrop-blur border-b border-line">
+      <div className="lg:hidden sticky top-[64px] z-30 -mx-5 sm:-mx-8 px-5 sm:px-8 py-3 bg-paper/80 backdrop-blur border-b border-line">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full flex items-center justify-between bg-surface border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-widest"
+          className="w-full flex items-center justify-between bg-surface border-2 border-ink px-4 py-2 font-mono text-[10px] uppercase tracking-widest"
         >
           <span className="flex items-center gap-2">
             <Filter size={14} className="text-ink-muted" />

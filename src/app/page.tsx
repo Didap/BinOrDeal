@@ -61,10 +61,12 @@ export default function HomePage() {
               </div>
 
               {/* Stats strip */}
-              <div className="mt-16 grid grid-cols-1 xs:grid-cols-3 gap-8 xs:gap-6 border-t-2 border-ink pt-6">
+              <div className="mt-16 grid grid-cols-2 xs:grid-cols-3 gap-y-10 gap-x-6 border-t-2 border-ink pt-6">
                 <Stat n="5" label="Marketplace" sub="aggregati in parallelo" />
                 <Stat n="6" label="Verticali" sub="TCG · Monete · Scarpe · Games" />
-                <Stat n="30k+" label="Catalog Ref" sub="prezzi di riferimento" />
+                <div className="col-span-2 xs:col-span-1">
+                  <Stat n="30k+" label="Catalog Ref" sub="prezzi di riferimento" />
+                </div>
               </div>
             </div>
 
@@ -358,8 +360,8 @@ export default function HomePage() {
 function Stat({ n, label, sub }: { n: string; label: string; sub: string }) {
   return (
     <div className="flex flex-col min-w-0">
-      <div className="display tabular text-4xl xs:text-5xl sm:text-6xl font-black leading-none truncate">{n}</div>
-      <div className="mt-1 font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-ink-muted truncate">
+      <div className="display tabular text-4xl xs:text-5xl font-black leading-none">{n}</div>
+      <div className="mt-1 font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-ink-muted leading-tight">
         {label}
       </div>
       <div className="mt-1 text-[10px] sm:text-[11px] text-ink-soft leading-snug max-w-[18ch] sm:max-w-[22ch]">{sub}</div>

@@ -41,9 +41,9 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
   return (
     <article
       className={cn(
-        "group relative bg-surface border-2 border-ink border-l-[6px]",
+        "group relative bg-surface border-2 border-ink border-l-4 sm:border-l-[6px]",
         tierColor,
-        "transition-all hover:shadow-[6px_6px_0_rgba(21,18,13,0.1)] hover:-translate-y-[1px]",
+        "transition-all hover:shadow-[6px_6px_0_rgba(21,18,13,0.1)] hover:-translate-y-[0.5px]",
         "rise",
       )}
       style={index != null ? { animationDelay: `${Math.min(index * 40, 600)}ms` } : undefined}
@@ -58,12 +58,12 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
         </div>
       )}
 
-      <div className="flex gap-0">
+      <div className="grid grid-cols-[84px_1fr] xs:grid-cols-[100px_1fr] sm:flex sm:gap-0">
         {/* thumbnail */}
         <div
           className={cn(
             "relative shrink-0 bg-ink/5 border-r-2 border-ink",
-            variant === "full" ? "w-28 sm:w-32" : "w-20",
+            variant === "full" ? "w-full sm:w-32" : "w-20",
           )}
         >
           {listing.thumbnail ? (
@@ -87,35 +87,38 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
         </div>
 
         {/* body */}
-        <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
-          <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col">
+          <div className="flex flex-col xs:flex-row items-start justify-between gap-2 xs:gap-3">
             <h3
               className={cn(
-                "display font-bold leading-[1.08] tracking-tightest line-clamp-2",
-                variant === "full" ? "text-lg sm:text-xl" : "text-base",
+                "display font-bold leading-[1.1] tracking-tightest line-clamp-2 order-2 xs:order-1",
+                variant === "full" ? "text-[15px] xs:text-base sm:text-xl" : "text-sm",
               )}
             >
               {listing.title}
             </h3>
-            <ScoreBadge score={score} variant="ticker" size={variant === "full" ? "md" : "sm"} />
+            <div className="order-1 xs:order-2">
+              <ScoreBadge score={score} variant="ticker" size="sm" />
+            </div>
           </div>
 
           {/* meta strip */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-ink-muted">
             {listing.provenance === "fallback" ? (
-              <span className="inline-flex items-center gap-1 bg-fair/20 text-fair border border-fair/40 px-1.5 py-0.5 leading-none">
-                <span aria-hidden>◆</span> campione
+              <span className="inline-flex items-center gap-1 bg-fair/15 text-fair border border-fair/30 px-1 py-0.5 leading-none">
+                campione
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-deal-deep">
                 <span aria-hidden className="size-1 rounded-full bg-deal pulse-dot" /> live
               </span>
             )}
-            <span>{listing.city ?? listing.country}</span>
+            <span className="hidden xs:inline" aria-hidden>·</span>
+            <span className="truncate max-w-[60px] xs:max-w-none">{listing.city ?? listing.country}</span>
             <span aria-hidden>·</span>
             <span>{CONDITION_LABELS[listing.condition]}</span>
-            <span aria-hidden>·</span>
-            <span>{formatRelative(listing.postedAt)}</span>
+            <span aria-hidden className="hidden sm:inline">·</span>
+            <span className="hidden sm:inline">{formatRelative(listing.postedAt)}</span>
           </div>
 
           {/* price row */}
@@ -138,7 +141,7 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
                   (?)
                 </div>
               ) : (
-                <div className="font-mono tabular text-2xl sm:text-3xl font-bold text-ink leading-none">
+                <div className="font-mono tabular text-lg xs:text-xl sm:text-3xl font-bold text-ink leading-none">
                   {formatPrice(listing.priceCents, listing.currency)}
                 </div>
               )}

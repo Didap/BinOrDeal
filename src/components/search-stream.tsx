@@ -119,7 +119,7 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
     <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
       <FilterSidebar tallies={state.tallies} />
 
-      <section className="space-y-8">
+      <section className="space-y-4 sm:space-y-8">
         {statusStrip}
 
         {state.refResolved ? (
@@ -142,28 +142,32 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
           <RefMatchSkeleton />
         )}
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <TallyPill tier="deal" count={state.tallies.deal} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
-          <TallyPill tier="fair" count={state.tallies.fair} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
-          <TallyPill tier="bin" count={state.tallies.bin} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
-          <div className="ml-auto flex items-center gap-3 font-mono text-[11px] uppercase tracking-widest text-ink-muted">
+        <div className="flex items-center gap-x-4 gap-y-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <TallyPill tier="deal" count={state.tallies.deal} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
+            <TallyPill tier="fair" count={state.tallies.fair} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
+            <TallyPill tier="bin" count={state.tallies.bin} total={state.listings.length} loading={state.listings.length === 0 && !state.done} />
+          </div>
+          <div className="w-full sm:w-auto sm:ml-auto flex items-center justify-between sm:justify-end gap-3 font-mono text-[11px] uppercase tracking-widest text-ink-muted border-t sm:border-t-0 border-line pt-2 sm:pt-0">
             <span>{state.listings.length} annunci</span>
-            {state.done && state.doneAt ? (
-              <span className="normal-case tracking-normal">
-                {state.firstChunkAt
-                  ? `1° in ${formatSeconds(state.firstChunkAt - state.streamStartedAt)} · totale ${formatSeconds(state.doneAt - state.streamStartedAt)}`
-                  : `totale ${formatSeconds(state.doneAt - state.streamStartedAt)}`}
-              </span>
-            ) : (
-              <>
-                <ElapsedClock since={state.streamStartedAt} />
-                <span className="normal-case tracking-normal text-deal-deep">
-                  {pendingPlatforms.length > 0
-                    ? `${pendingPlatforms.map((p) => PLATFORM_LABELS[p] ?? p).join(", ")} in arrivo…`
-                    : "elaborazione…"}
+            <div className="flex items-center gap-3">
+              {state.done && state.doneAt ? (
+                <span className="normal-case tracking-normal">
+                  {state.firstChunkAt
+                    ? `${formatSeconds(state.doneAt - state.streamStartedAt)}`
+                    : `${formatSeconds(state.doneAt - state.streamStartedAt)}`}
                 </span>
-              </>
-            )}
+              ) : (
+                <>
+                  <ElapsedClock since={state.streamStartedAt} />
+                  <span className="normal-case tracking-normal text-deal-deep hidden xs:inline">
+                    {pendingPlatforms.length > 0
+                      ? `${pendingPlatforms.map((p) => PLATFORM_LABELS[p] ?? p).join(", ")} in arrivo…`
+                      : "elaborazione…"}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
