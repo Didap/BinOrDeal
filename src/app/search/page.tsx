@@ -62,8 +62,17 @@ export default async function SearchPage({ searchParams }: Props) {
   const quota = await checkSearchQuota(userId ?? undefined, user?.email)
 
   if (q && quota.allowed) {
-    // Audit log the search event
-    await logSearch({ userId: userId ?? undefined, query: q, vertical })
+    // Audit log the search event (including price filters when present)
+    const minPriceRaw = sp.min ? parseFloat(sp.min) : null
+    const maxPriceRaw = sp.max ? parseFloat(sp.max) : null
+    await logSearch({
+      userId: userId ?? undefined,
+      query: q,
+      vertical,
+      minPriceCents: minPriceRaw ? Math.round(minPriceRaw * 100) : null,
+      maxPriceCents: maxPriceRaw ? Math.round(maxPriceRaw * 100) : null,
+      platforms: sp.p ?? null,
+    })
   }
 
   return (

@@ -117,9 +117,10 @@ export const pokemonPrices = pgTable(
 export const users = pgTable(
   "users",
   {
-    id: text("id").primaryKey(), // clerk user id
+    id: text("id").primaryKey(), // supabase user id
     email: text("email").notNull(),
     tier: text("tier").notNull().default("free"), // "free" | "pro"
+    role: text("role").notNull().default("user"), // "user" | "admin"
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -145,6 +146,9 @@ export const searchLogs = pgTable(
     userIp: text("user_ip"), // for anonymous quota tracking by IP
     query: text("query").notNull(),
     vertical: text("vertical").notNull(),
+    minPriceCents: integer("min_price_cents"), // price filter: min (nullable)
+    maxPriceCents: integer("max_price_cents"), // price filter: max (nullable)
+    platforms: text("platforms"), // selected platforms (comma-separated list)
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

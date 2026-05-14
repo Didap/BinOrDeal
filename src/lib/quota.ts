@@ -111,6 +111,9 @@ export async function logSearch(params: {
   userId?: string
   query: string
   vertical: string
+  minPriceCents?: number | null
+  maxPriceCents?: number | null
+  platforms?: string | null
 }) {
   if (!db) return
 
@@ -126,6 +129,9 @@ export async function logSearch(params: {
       userIp: clientIp,
       query: params.query,
       vertical: params.vertical,
+      minPriceCents: params.minPriceCents ?? null,
+      maxPriceCents: params.maxPriceCents ?? null,
+      platforms: params.platforms ?? null,
     })
   } catch (error) {
     console.error("Failed to log search:", error)
