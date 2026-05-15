@@ -3,7 +3,7 @@ import {
   getAllUsersWithStats,
   getGlobalStats,
 } from "@/lib/admin"
-import { Users, Search, Activity, UserX, TrendingUp, ShoppingBag } from "lucide-react"
+import { Users, Search, Activity, UserX, TrendingUp, ShoppingBag, Bell } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +25,7 @@ export default async function AdminDashboardPage() {
         </h1>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats grid: Primary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Users size={20} />}
@@ -51,6 +51,31 @@ export default async function AdminDashboardPage() {
           value={stats.anonymousSearches}
           accent="bg-bin"
         />
+      </div>
+
+      {/* Stats grid: Price Alerts */}
+      <div>
+        <div className="rule-thin mb-4" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={<Bell size={20} />}
+            label="Alert attivi"
+            value={stats.totalAlerts}
+            accent="bg-ink"
+          />
+          <StatCard
+            icon={<TrendingUp size={20} />}
+            label="Notifiche oggi"
+            value={stats.notificationsToday}
+            accent="bg-deal"
+          />
+          <StatCard
+            icon={<Activity size={20} />}
+            label="Notifiche / 7gg"
+            value={stats.notificationsWeekly}
+            accent="bg-hot"
+          />
+        </div>
       </div>
 
       {/* Analytics Grid */}
@@ -121,23 +146,24 @@ export default async function AdminDashboardPage() {
           </span>
         </div>
 
-        <div className="border-2 border-ink bg-surface overflow-x-auto">
+        {/* Desktop View: Table */}
+        <div className="hidden md:block border-2 border-ink bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink bg-ink text-paper">
                 <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
                   Email
                 </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
+                <th className="hidden lg:table-cell text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
                   Tier
                 </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
+                <th className="hidden md:table-cell text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
                   Ruolo
                 </th>
                 <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3">
                   Ricerche
                 </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
+                <th className="hidden sm:table-cell text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
                   Registrato il
                 </th>
                 <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
@@ -153,19 +179,19 @@ export default async function AdminDashboardPage() {
                     i % 2 === 0 ? "bg-surface" : "bg-paper"
                   }`}
                 >
-                  <td className="px-4 py-3 font-mono text-[12px]">
+                  <td className="px-4 py-3 font-mono text-[12px] truncate max-w-[200px] lg:max-w-none">
                     {u.email}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden lg:table-cell px-4 py-3">
                     <TierBadge tier={u.tier} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden md:table-cell px-4 py-3">
                     <RoleBadge role={u.role} />
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular text-[13px] font-bold">
                     {u.searchCount}
                   </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-ink-muted">
+                  <td className="hidden sm:table-cell px-4 py-3 font-mono text-[11px] text-ink-muted">
                     {formatDate(u.createdAt)}
                   </td>
                   <td className="px-4 py-3">
@@ -178,18 +204,46 @@ export default async function AdminDashboardPage() {
                   </td>
                 </tr>
               ))}
-              {allUsers.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-ink-muted font-mono text-[12px]"
-                  >
-                    Nessun utente registrato
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View: Cards */}
+        <div className="md:hidden space-y-4">
+          {allUsers.map((u) => (
+            <div key={u.id} className="border-2 border-ink bg-surface p-4 space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1 min-w-0">
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Utente</div>
+                  <div className="font-bold text-sm truncate">{u.email}</div>
+                </div>
+                <TierBadge tier={u.tier} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-line">
+                <div>
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-ink-muted">Ricerche</div>
+                  <div className="font-mono font-bold">{u.searchCount}</div>
+                </div>
+                <div>
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-ink-muted">Registrato</div>
+                  <div className="font-mono text-[10px]">{formatDate(u.createdAt)}</div>
+                </div>
+              </div>
+
+              <Link
+                href={`/admin/users/${u.id}`}
+                className="block w-full text-center py-3 bg-paper border-2 border-ink font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-ink hover:text-paper transition-all"
+              >
+                Visualizza Profilo →
+              </Link>
+            </div>
+          ))}
+          {allUsers.length === 0 && (
+            <div className="p-10 text-center text-ink-muted font-mono text-[12px] border-2 border-ink border-dashed">
+              Nessun utente registrato
+            </div>
+          )}
         </div>
       </section>
     </div>
@@ -208,18 +262,18 @@ function StatCard({
   accent: string
 }) {
   return (
-    <div className="border-2 border-ink bg-surface p-5 space-y-3 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_var(--ink)] transition-all">
+    <div className="border-2 border-ink bg-surface p-4 sm:p-5 space-y-2 sm:space-y-3 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_var(--ink)] transition-all">
       <div className="flex items-center gap-2">
         <div
-          className={`${accent} text-paper p-1.5 inline-flex items-center justify-center`}
+          className={`${accent} text-paper p-1 sm:p-1.5 inline-flex items-center justify-center scale-90 sm:scale-100`}
         >
           {icon}
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-muted">
+        <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-ink-muted truncate">
           {label}
         </span>
       </div>
-      <div className="display text-3xl sm:text-4xl font-black tracking-tightest tabular">
+      <div className="display text-2xl sm:text-4xl font-black tracking-tightest tabular leading-none">
         {value.toLocaleString("it-IT")}
       </div>
     </div>

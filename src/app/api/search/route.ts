@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 import { runSearch } from "@/lib/search"
+
+export const dynamic = "force-dynamic"
+
 import type { Platform, ScoreTier, Vertical } from "@/lib/types"
 
 /**

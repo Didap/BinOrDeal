@@ -222,8 +222,8 @@ export function SearchBox({
 
       {/* Suggestions — wrap aggressively */}
       {suggestions.length > 0 && (
-        <div className="flex items-start gap-2 flex-wrap pt-1">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted py-1.5">
+        <div className="flex flex-col sm:flex-row items-start gap-2 pt-1 overflow-hidden">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted py-1.5 shrink-0">
             Prova →
           </span>
           <div className="flex gap-2 flex-wrap min-w-0">
@@ -235,7 +235,7 @@ export function SearchBox({
                   setQ(s)
                   setTimeout(go, 10)
                 }}
-                className="border-2 border-line-strong px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-soft hover:bg-ink hover:text-paper transition-colors whitespace-nowrap"
+                className="border-2 border-line-strong px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-soft hover:bg-ink hover:text-paper transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-full"
               >
                 {s}
               </button>
@@ -259,7 +259,7 @@ function GamesRefiner({
   onPlatformChange: (p: string) => void
 }) {
   return (
-    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 border-2 border-ink bg-paper-deep p-2 xs:px-3 xs:py-2">
+    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 border-2 border-ink bg-paper-deep p-2 md:px-3 md:py-2">
       <div className="flex items-center gap-3">
         <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted shrink-0">
           Tipo
@@ -311,7 +311,7 @@ function ShoesRefiner({
   onGenderChange: (g: ShoeGender | "any") => void
 }) {
   return (
-    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 border-2 border-ink bg-paper-deep p-2 xs:px-3 xs:py-2">
+    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 border-2 border-ink bg-paper-deep p-2 md:px-3 md:py-2">
       <div className="flex items-center gap-3">
         <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Taglia</span>
         <select
@@ -362,7 +362,7 @@ function TcgRefiner({
 }) {
   return (
     <div className="flex flex-col gap-3 border-2 border-ink bg-paper-deep p-3 xs:px-3 xs:py-2">
-      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Gioco</span>
           <div className="flex border-2 border-ink bg-surface">

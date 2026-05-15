@@ -5,6 +5,7 @@ import { SearchBox } from "@/components/search-box"
 import { DealTicker } from "@/components/ticker"
 import { HeroDemo } from "@/components/hero-demo"
 import { Sparkline } from "@/components/sparkline"
+import { UpgradeButton } from "@/components/upgrade-button"
 
 const SUGGESTIONS = [
   "charizard base set",
@@ -482,12 +483,18 @@ function PriceCard({
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        className={`mt-8 w-full py-3 font-mono uppercase tracking-widest text-sm border-2 ${featured ? "bg-deal border-deal text-paper hover:bg-deal-deep" : "border-ink hover:bg-ink hover:text-paper"} transition-colors`}
-      >
-        {featured ? "Diventa Pro →" : "Inizia gratis"}
-      </button>
+      {featured ? (
+        <div className="mt-8">
+          <UpgradeButton />
+        </div>
+      ) : (
+        <Link
+          href="/login"
+          className={`mt-8 block text-center w-full py-3 font-mono uppercase tracking-widest text-sm border-2 ${featured ? "bg-deal border-deal text-paper hover:bg-deal-deep" : "border-ink hover:bg-ink hover:text-paper"} transition-colors`}
+        >
+          {featured ? "Diventa Pro →" : "Inizia gratis"}
+        </Link>
+      )}
     </div>
   )
 }

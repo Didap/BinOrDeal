@@ -1,9 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getUserById, getUserSearchLogs } from "@/lib/admin"
-import { db } from "@/db/client"
-import { userThresholds, type UserThreshold } from "@/db/schema"
-import { eq, desc } from "drizzle-orm"
+import { getUserById, getUserSearchLogs, getUserThresholds } from "@/lib/admin"
 import { ArrowLeft, Search, Calendar, MapPin, DollarSign, Activity, ShoppingBag } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -14,21 +11,13 @@ interface Props {
 
 export default async function AdminUserDetailPage({ params }: Props) {
   const { id } = await params
-  const [user, logs] = await Promise.all([
+  const [user, logs, thresholds] = await Promise.all([
     getUserById(id),
     getUserSearchLogs(id, 500),
+    getUserThresholds(id)
   ])
 
   if (!user) notFound()
-
-  // Also fetch this user's custom thresholds
-  const thresholds: UserThreshold[] = db
-    ? await db
-        .select()
-        .from(userThresholds)
-        .where(eq(userThresholds.userId, id))
-        .orderBy(desc(userThresholds.updatedAt))
-    : []
 
   // Aggregate stats from logs
   const verticalCounts: Record<string, number> = {}
@@ -72,19 +61,23 @@ export default async function AdminUserDetailPage({ params }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <InfoCard label="Tier" value={user.tier.toUpperCase()} />
         <InfoCard label="Ruolo" value={user.role.toUpperCase()} />
-        <InfoCard label="Ricerche totali" value={String(logs.length)} />
-        <InfoCard
-          label="Registrato il"
-          value={new Date(user.createdAt).toLocaleDateString("it-IT", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
-        />
+        <div className="hidden sm:block">
+          <InfoCard label="Ricerche totali" value={String(logs.length)} />
+        </div>
+        <div className="hidden sm:block">
+          <InfoCard
+            label="Registrato il"
+            value={new Date(user.createdAt).toLocaleDateString("it-IT", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
+          />
+        </div>
       </div>
 
       {/* Management Section */}
-      <section className="border-2 border-ink bg-paper-deep p-6 space-y-4">
+      <section className="border-2 border-ink bg-paper-deep p-4 sm:p-6 space-y-4">
         <div className="flex items-center gap-2">
           <div className="bg-ink text-paper p-1">
             <Activity size={16} />
@@ -98,22 +91,22 @@ export default async function AdminUserDetailPage({ params }: Props) {
           const { updateUserAction } = await import("@/app/admin/actions")
           await updateUserAction(user.id, formData)
         }} className="grid sm:flex sm:items-end gap-6 pt-2">
-          <div className="space-y-2 flex-1 min-w-[200px]">
+          <div className="space-y-2 flex-1 min-w-[150px]">
             <label className="block font-mono text-[10px] uppercase tracking-widest text-ink-muted">
-              Tier (Abbonamento)
+              Tier
             </label>
             <select
               name="tier"
               defaultValue={user.tier}
               className="w-full h-10 border-2 border-ink bg-surface px-3 font-mono text-[11px] uppercase outline-none focus:border-deal"
             >
-              <option value="free">Free (Limitato)</option>
-              <option value="pro">Pro (Illimitato)</option>
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
             </select>
           </div>
-          <div className="space-y-2 flex-1 min-w-[200px]">
+          <div className="space-y-2 flex-1 min-w-[150px]">
             <label className="block font-mono text-[10px] uppercase tracking-widest text-ink-muted">
-              Ruolo (Permessi)
+              Ruolo
             </label>
             <select
               name="role"
@@ -126,9 +119,9 @@ export default async function AdminUserDetailPage({ params }: Props) {
           </div>
           <button
             type="submit"
-            className="h-10 bg-ink text-paper px-6 font-mono text-[10px] uppercase tracking-widest font-black hover:bg-deal transition-all shadow-[4px_4px_0_rgba(21,18,13,0.15)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]"
+            className="h-10 bg-ink text-paper px-6 font-mono text-[10px] uppercase tracking-widest font-black hover:bg-deal transition-all"
           >
-            Applica Modifiche
+            Applica
           </button>
         </form>
       </section>
@@ -192,7 +185,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Custom thresholds table (if any) */}
+      {/* Custom thresholds table */}
       {thresholds.length > 0 && (
         <section>
           <div className="rule-thick pt-4 pb-4">
@@ -200,57 +193,57 @@ export default async function AdminUserDetailPage({ params }: Props) {
               Soglie personalizzate
             </h2>
           </div>
-          <div className="border-2 border-ink bg-surface overflow-x-auto">
+          
+          {/* Desktop Table */}
+          <div className="hidden sm:block border-2 border-ink bg-surface overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-ink bg-ink text-paper">
-                  <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
-                    Prodotto ID
-                  </th>
-                  <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3">
-                    Deal Price
-                  </th>
-                  <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3">
-                    Bin Price
-                  </th>
-                  <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
-                    Aggiornato
-                  </th>
+                  <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">Prodotto ID</th>
+                  <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3">Deal Price</th>
+                  <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3">Bin Price</th>
+                  <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">Aggiornato</th>
                 </tr>
               </thead>
               <tbody>
                 {thresholds.map((t, i) => (
-                  <tr
-                    key={t.id}
-                    className={`border-b border-line ${
-                      i % 2 === 0 ? "bg-surface" : "bg-paper"
-                    }`}
-                  >
-                    <td className="px-4 py-3 font-mono text-[11px]">
-                      {t.productId}
-                    </td>
+                  <tr key={t.id} className={`border-b border-line ${i % 2 === 0 ? "bg-surface" : "bg-paper"}`}>
+                    <td className="px-4 py-3 font-mono text-[11px]">{t.productId}</td>
                     <td className="px-4 py-3 text-right font-mono tabular text-[12px] text-deal font-bold">
-                      {t.dealPriceCents != null
-                        ? `€${(t.dealPriceCents / 100).toFixed(2)}`
-                        : "—"}
+                      {t.dealPriceCents != null ? `€${(t.dealPriceCents / 100).toFixed(2)}` : "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-mono tabular text-[12px] text-bin font-bold">
-                      {t.binPriceCents != null
-                        ? `€${(t.binPriceCents / 100).toFixed(2)}`
-                        : "—"}
+                      {t.binPriceCents != null ? `€${(t.binPriceCents / 100).toFixed(2)}` : "—"}
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-ink-muted">
-                      {formatDate(t.updatedAt)}
-                    </td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-ink-muted">{formatDate(t.updatedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-3">
+            {thresholds.map((t) => (
+              <div key={t.id} className="border-2 border-ink bg-surface p-4 space-y-3">
+                <div className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Prodotto: {t.productId}</div>
+                <div className="grid grid-cols-2 gap-4 border-t border-line pt-2">
+                  <div>
+                    <div className="font-mono text-[8px] uppercase text-ink-muted">Deal</div>
+                    <div className="font-mono font-bold text-deal">€{(t.dealPriceCents! / 100).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[8px] uppercase text-ink-muted">Bin</div>
+                    <div className="font-mono font-bold text-bin">€{(t.binPriceCents! / 100).toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
-      {/* Search logs table */}
+      {/* Search logs section */}
       <section>
         <div className="rule-thick pt-4 pb-4 flex items-center justify-between">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink font-bold">
@@ -261,106 +254,72 @@ export default async function AdminUserDetailPage({ params }: Props) {
           </span>
         </div>
 
-        <div className="border-2 border-ink bg-surface overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden lg:block border-2 border-ink bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink bg-ink text-paper">
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <Calendar size={12} className="inline mr-1.5 -mt-0.5" />
-                  Data
-                </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <Search size={12} className="inline mr-1.5 -mt-0.5" />
-                  Query
-                </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">
-                  Verticale
-                </th>
-                <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <DollarSign size={12} className="inline mr-1 -mt-0.5" />
-                  Min
-                </th>
-                <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <DollarSign size={12} className="inline mr-1 -mt-0.5" />
-                  Max
-                </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <ShoppingBag size={12} className="inline mr-1.5 -mt-0.5" />
-                  Marketplace
-                </th>
-                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                  <MapPin size={12} className="inline mr-1.5 -mt-0.5" />
-                  IP
-                </th>
+                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">Data</th>
+                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">Query</th>
+                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">Verticale</th>
+                <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">Min</th>
+                <th className="text-right font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">Max</th>
+                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">Marketplace</th>
+                <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3">IP</th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log, i) => (
-                <tr
-                  key={log.id}
-                  className={`border-b border-line hover:bg-paper-deep transition-colors ${
-                    i % 2 === 0 ? "bg-surface" : "bg-paper"
-                  }`}
-                >
-                  <td className="px-4 py-3 font-mono text-[11px] text-ink-muted whitespace-nowrap">
-                    {formatDate(log.createdAt)}
-                  </td>
+                <tr key={log.id} className={`border-b border-line ${i % 2 === 0 ? "bg-surface" : "bg-paper"}`}>
+                  <td className="px-4 py-3 font-mono text-[11px] text-ink-muted whitespace-nowrap">{formatDate(log.createdAt)}</td>
+                  <td className="px-4 py-3 font-mono text-[12px] font-bold">{log.query}</td>
+                  <td className="px-4 py-3"><VerticalBadge vertical={log.vertical} /></td>
+                  <td className="px-4 py-3 text-right font-mono tabular text-[12px] text-deal font-bold">{log.minPriceCents != null ? `€${(log.minPriceCents / 100).toFixed(2)}` : "—"}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular text-[12px] text-bin font-bold">{log.maxPriceCents != null ? `€${(log.maxPriceCents / 100).toFixed(2)}` : "—"}</td>
                   <td className="px-4 py-3">
-                    <span className="font-mono text-[12px] font-bold">
-                      {log.query}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <VerticalBadge vertical={log.vertical} />
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular text-[12px]">
-                    {log.minPriceCents != null ? (
-                      <span className="text-deal font-bold">
-                        €{(log.minPriceCents / 100).toFixed(2)}
-                      </span>
-                    ) : (
-                      <span className="text-ink-faint">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono tabular text-[12px]">
-                    {log.maxPriceCents != null ? (
-                      <span className="text-bin font-bold">
-                        €{(log.maxPriceCents / 100).toFixed(2)}
-                      </span>
-                    ) : (
-                      <span className="text-ink-faint">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1 max-w-[180px]">
-                      {log.platforms ? (
-                        log.platforms.split(",").map((p) => (
-                          <span key={p} className="font-mono text-[8px] uppercase tracking-tighter bg-ink/5 border border-ink/10 px-1 py-0.5 rounded-sm">
-                            {p}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-ink-faint text-[9px] italic">all</span>
-                      )}
+                    <div className="flex flex-wrap gap-1 max-w-[150px]">
+                      {log.platforms?.split(",").map((p) => (
+                        <span key={p} className="font-mono text-[8px] uppercase bg-ink/5 px-1 py-0.5 rounded-sm">{p}</span>
+                      ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-ink-muted">
-                    {log.userIp ?? "—"}
-                  </td>
+                  <td className="px-4 py-3 font-mono text-[11px] text-ink-muted">{log.userIp ?? "—"}</td>
                 </tr>
               ))}
-              {logs.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-ink-muted font-mono text-[12px]"
-                  >
-                    Nessuna ricerca effettuata
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden space-y-4">
+          {logs.map((log) => (
+            <div key={log.id} className="border-2 border-ink bg-surface p-4 space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div className="font-mono text-[9px] text-ink-muted">{formatDate(log.createdAt)}</div>
+                  <div className="font-bold text-sm">"{log.query}"</div>
+                </div>
+                <VerticalBadge vertical={log.vertical} />
+              </div>
+              <div className="grid grid-cols-2 gap-4 border-t border-line pt-2">
+                <div>
+                  <div className="font-mono text-[8px] uppercase text-ink-muted">Range</div>
+                  <div className="font-mono text-[10px] font-bold">
+                    {log.minPriceCents != null ? `€${(log.minPriceCents/100).toFixed(0)}` : "0"} - {log.maxPriceCents != null ? `€${(log.maxPriceCents/100).toFixed(0)}` : "∞"}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-[8px] uppercase text-ink-muted">IP</div>
+                  <div className="font-mono text-[10px]">{log.userIp?.slice(0, 15)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {logs.length === 0 && (
+            <div className="p-8 text-center text-ink-muted font-mono text-[11px] border-2 border-ink border-dashed">
+              Nessuna ricerca salvata
+            </div>
+          )}
         </div>
       </section>
     </div>
@@ -404,7 +363,6 @@ function formatDate(d: Date | null) {
   return new Date(d).toLocaleDateString("it-IT", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   })

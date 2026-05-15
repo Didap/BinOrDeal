@@ -28,7 +28,7 @@ export default function LoginPage() {
           },
         })
         if (error) throw error
-        alert("Controlla la tua email per confermare l'account!")
+        window.location.href = "/"
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,

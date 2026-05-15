@@ -82,18 +82,18 @@ export default async function SearchPage({ searchParams }: Props) {
 
       {/* Compact hero with search */}
       <section className="border-b-2 border-ink bg-surface relative">
-        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 py-4 sm:py-8 grid gap-5">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 pt-6 pb-6 sm:pt-10 sm:pb-10 grid gap-5">
           <div className="flex items-baseline justify-between gap-4 flex-wrap">
             <div>
               <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-ink-muted">
                 Ricerca · {VERTICAL_LABELS[vertical]}
               </div>
               {q ? (
-                <h1 className="mt-1 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95]">
+                <h1 className="mt-1 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95] break-words overflow-hidden">
                   “{q}”
                 </h1>
               ) : (
-                <h1 className="mt-1 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95]">
+                <h1 className="mt-1 display text-4xl sm:text-5xl font-black tracking-tightest leading-[0.95] break-words overflow-hidden">
                   <span className="italic font-light text-ink-muted">Cosa cerchi?</span>
                 </h1>
               )}
@@ -121,7 +121,7 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <main className="mx-auto max-w-[1440px] px-5 sm:px-8 py-10 relative z-10">
+      <main className="mx-auto max-w-[1440px] px-5 sm:px-8 pt-2 pb-10 relative z-10 overflow-x-hidden">
         {!q ? (
           <EmptyState vertical={vertical} tcgGame={tcgGame} />
         ) : !quota.allowed ? (
@@ -131,6 +131,20 @@ export default async function SearchPage({ searchParams }: Props) {
             query={streamParams.toString()}
             sort={sort}
             statusStrip={<AdapterStatusStrip />}
+            userTier={quota.tier}
+            searchQuery={q}
+            searchVertical={vertical}
+            searchParamsJson={JSON.stringify({
+              vertical,
+              platforms: initialPlatforms,
+              tcgGame,
+              gameKind,
+              gamePlatform,
+              shoeSize,
+              shoeGender,
+              pokemonSet,
+              excludeLotteries,
+            })}
           />
         )}
       </main>

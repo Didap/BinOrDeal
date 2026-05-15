@@ -1,15 +1,18 @@
 "use client"
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import Link from "next/link"
 import { FilterSidebar } from "@/components/filter-sidebar"
 import { ListingCard } from "@/components/listing-card"
 import { RefMatch } from "@/components/ref-match"
 import { ThresholdEditor } from "@/components/threshold-editor"
+import { PriceAlertModal } from "@/components/price-alert-modal"
 import { ScoreBadge } from "@/components/score-badge"
 import {
   RefMatchSkeleton,
   SkeletonStack,
 } from "@/components/skeletons"
 import { PLATFORM_LABELS } from "@/lib/format"
+import { Bell } from "lucide-react"
 import type { SearchStreamEvent, StreamedListing } from "@/lib/search"
 import type { CatalogRef, Platform } from "@/lib/types"
 
@@ -22,6 +25,14 @@ interface Props {
    *  component doesn't pull `marketplaceAdapters` (and Playwright with it)
    *  into the client bundle. */
   statusStrip: ReactNode
+  /** User tier for alert eligibility. */
+  userTier?: "anonymous" | "free" | "pro"
+  /** Raw search query for the alert modal. */
+  searchQuery?: string
+  /** Vertical for the alert. */
+  searchVertical?: string
+  /** Full search params JSON for reproducing this exact search later. */
+  searchParamsJson?: string
 }
 
 interface State {
@@ -78,7 +89,8 @@ function makeInitial(): State {
 
 const FALLBACK_PLATFORMS: Platform[] = ["ebay", "vinted", "wallapop", "subito", "facebook"]
 
-export function SearchStream({ query, sort, statusStrip }: Props) {
+export function SearchStream({ query, sort, statusStrip, userTier, searchQuery, searchVertical, searchParamsJson }: Props) {
+  const [showAlertModal, setShowAlertModal] = useState(false)
   const [state, setState] = useState<State>(makeInitial)
   // Track the latest query string so we can ignore in-flight chunks from a
   // stale stream when the user changes filters/keyword mid-flight.
@@ -119,7 +131,7 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
     <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
       <FilterSidebar tallies={state.tallies} />
 
-      <section className="space-y-4 sm:space-y-8">
+      <section className="space-y-2 sm:space-y-4">
         {statusStrip}
 
         {state.refResolved ? (
@@ -194,6 +206,65 @@ export function SearchStream({ query, sort, statusStrip }: Props) {
               <SkeletonStack count={skeletonCount} />
             )}
           </div>
+        )}
+
+        {/* Sticky Price Alert Bar — Fixed at bottom for maximum visibility */}
+        {userTier && searchQuery && state.listings.length > 0 && (
+          <div className="fixed bottom-6 left-0 right-0 z-50 px-5 sm:px-8 pointer-events-none">
+            <div className={`mx-auto max-w-2xl w-full pointer-events-auto border-2 ${
+              userTier === "pro" ? "border-deal bg-surface" : "border-line bg-surface"
+            } shadow-[12px_12px_0px_0px_rgba(0,0,0,0.15)] animate-in fade-in slide-in-from-bottom-10 duration-700 flex items-center justify-between gap-4 p-4`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 flex items-center justify-center shrink-0 border-2 ${
+                  userTier === "pro" ? "bg-deal/10 border-deal" : "bg-ink/5 border-line"
+                }`}>
+                  <Bell size={20} className={userTier === "pro" ? "text-deal animate-pulse" : "text-ink-muted"} />
+                </div>
+                <div>
+                  <div className={`font-mono text-[10px] uppercase tracking-widest font-bold ${
+                    userTier === "pro" ? "text-deal" : "text-ink-muted"
+                  }`}>
+                    {userTier === "pro" ? "Price Alert Attivo" : "Price Alert Pro"}
+                  </div>
+                  <p className="text-xs text-ink-soft leading-tight max-w-[240px] sm:max-w-none">
+                    {userTier === "pro" 
+                      ? "Vuoi ricevere un'email se il prezzo scende ancora?" 
+                      : "Passa a Pro per monitorare questa ricerca 24/7."}
+                  </p>
+                </div>
+              </div>
+              
+              {userTier === "pro" ? (
+                <button
+                  onClick={() => setShowAlertModal(true)}
+                  className="h-9 px-4 bg-deal text-paper border-2 border-deal font-mono text-[10px] uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2 shrink-0 shadow-[3px_3px_0px_0px_rgba(34,197,94,0.2)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                >
+                  <Bell size={12} />
+                  Attiva
+                </button>
+              ) : (
+                <Link 
+                  href="/pricing"
+                  className="h-9 px-4 bg-ink text-paper border-2 border-ink font-mono text-[10px] uppercase tracking-widest hover:bg-ink-soft transition-all flex items-center shrink-0"
+                >
+                  Scopri
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Alert Modal */}
+        {showAlertModal && searchQuery && searchVertical && (
+          <PriceAlertModal
+            query={searchQuery}
+            vertical={searchVertical}
+            searchParams={searchParamsJson ?? "{}"}
+            lowestPriceCents={sorted.length > 0 ? Math.min(...sorted.map((l) => l.priceCents)) : undefined}
+            refPriceCents={state.ref?.refPriceCents}
+            onClose={() => setShowAlertModal(false)}
+            onCreated={() => setShowAlertModal(false)}
+          />
         )}
       </section>
     </div>

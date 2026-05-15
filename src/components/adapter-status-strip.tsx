@@ -13,21 +13,30 @@ export function AdapterStatusStrip() {
   }
 
   return (
-    <div className="flex flex-col gap-2 bg-surface border-2 border-ink px-3 sm:px-4 py-3 font-mono uppercase tracking-widest">
-      <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-[10px] sm:text-[11px]">
-        <span className="text-ink-muted shrink-0">Sorgenti:</span>
+    <div className="flex flex-col gap-2 bg-paper-deep border-2 border-ink px-4 py-3 font-mono uppercase tracking-widest relative overflow-hidden">
+      {/* Decorative slant for texture */}
+      <div className="absolute top-0 right-0 w-24 h-full bg-ink/5 -skew-x-12 translate-x-12 pointer-events-none" />
+      
+      <div className="flex items-center flex-wrap gap-x-5 gap-y-2 text-[10px] sm:text-[11px] relative z-10">
+        <span className="text-ink-muted shrink-0 flex items-center gap-2">
+          <span className="w-2 h-[2px] bg-ink/20" />
+          Sorgenti
+        </span>
         {MARKETPLACE_META.map((a) => (
-          <span key={a.platform} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <div key={a.platform} className="flex items-center gap-1.5 whitespace-nowrap">
             <StatusDot status={a.status} />
-            <span className={cn(a.status === "live" ? "text-ink" : "text-ink-muted")}>
+            <span className={cn(
+              "font-bold",
+              a.status === "live" ? "text-ink" : "text-ink-muted"
+            )}>
               {a.label}
             </span>
-          </span>
+          </div>
         ))}
       </div>
       {byStatus.stub.length > 0 && (
-        <div className="text-[9px] sm:text-[10px] normal-case tracking-normal text-ink-muted leading-snug pt-1 border-t border-line/50">
-          I risultati marcati <em className="not-italic text-fair font-bold">campione</em> sono esempi per la demo.
+        <div className="text-[9px] sm:text-[10px] normal-case tracking-normal text-ink-muted leading-snug pt-2 mt-1 border-t border-ink/10 relative z-10">
+          I risultati marcati <span className="text-fair font-bold italic">campione</span> sono simulazioni per la demo.
         </div>
       )}
     </div>

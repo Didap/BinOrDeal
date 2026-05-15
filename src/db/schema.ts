@@ -121,6 +121,8 @@ export const users = pgTable(
     email: text("email").notNull(),
     tier: text("tier").notNull().default("free"), // "free" | "pro"
     role: text("role").notNull().default("user"), // "user" | "admin"
+    stripeCustomerId: text("stripe_customer_id").unique(),
+    stripeSubscriptionId: text("stripe_subscription_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -188,12 +190,80 @@ export const userThresholds = pgTable(
   ]
 )
 
+/**
+ * Price alerts — Pro users can create up to 3 alerts. Each alert
+ * re-runs a saved search on a cron schedule and sends an email when
+ * a listing is found at or below the target price.
+ *
+ * `params` is a JSON-serialized copy of the SearchParams used at
+ * creation time (vertical, platforms, filters, etc.) so the worker
+ * can replay the exact same search.
+ */
+export const priceAlerts = pgTable(
+  "price_alerts",
+  {
+    id: text("id").primaryKey(), // uuid
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    query: text("query").notNull(),
+    vertical: text("vertical").notNull(), // "tcg" | "games" | "shoes" | …
+    params: text("params").notNull(), // JSON string of SearchParams subset
+    targetPriceCents: integer("target_price_cents").notNull(),
+    frequency: text("frequency").notNull().default("daily"), // "hourly" | "daily" | "weekly"
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+    isEnabled: integer("is_enabled").notNull().default(1), // 1 = true, 0 = false
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("price_alerts_user_idx").on(t.userId),
+    index("price_alerts_enabled_freq_idx").on(t.isEnabled, t.frequency),
+  ]
+)
+
+/**
+ * Price alert notification logs — history of every email sent.
+ * Used for dashboard stats (notifs/day, notifs/week) and user history.
+ */
+export const priceAlertNotifications = pgTable(
+  "price_alert_notifications",
+  {
+    id: text("id").primaryKey(), // uuid
+    alertId: text("alert_id")
+      .notNull()
+      .references(() => priceAlerts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lowestPriceCents: integer("lowest_price_cents").notNull(),
+    targetPriceCents: integer("target_price_cents").notNull(),
+    listingUrl: text("listing_url").notNull(), // link to the best deal found
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("alert_notifications_user_idx").on(t.userId),
+    index("alert_notifications_created_idx").on(t.createdAt),
+  ]
+)
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type SearchLog = typeof searchLogs.$inferSelect
 export type NewSearchLog = typeof searchLogs.$inferInsert
 export type UserThreshold = typeof userThresholds.$inferSelect
 export type NewUserThreshold = typeof userThresholds.$inferInsert
+export type PriceAlert = typeof priceAlerts.$inferSelect
+export type NewPriceAlert = typeof priceAlerts.$inferInsert
+export type PriceAlertNotification = typeof priceAlertNotifications.$inferSelect
+export type NewPriceAlertNotification = typeof priceAlertNotifications.$inferInsert
 
 export type PokemonSet = typeof pokemonSets.$inferSelect
 export type PokemonCard = typeof pokemonCards.$inferSelect

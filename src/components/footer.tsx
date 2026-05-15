@@ -38,6 +38,7 @@ export function Footer() {
             <li>Vinted</li>
             <li>Wallapop</li>
             <li>Subito</li>
+            <li>Facebook Marketplace</li>
           </ul>
         </div>
 

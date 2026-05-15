@@ -1,53 +1,12 @@
 import Link from "next/link"
-import { db } from "@/db/client"
-import { searchLogs, users } from "@/db/schema"
-import { desc, eq } from "drizzle-orm"
 import { Search, Calendar, MapPin, DollarSign, User, ShoppingBag } from "lucide-react"
-
-type SearchLogWithUser = {
-  id: string
-  userId: string | null
-  sessionId: string
-  userIp: string | null
-  query: string
-  vertical: string
-  minPriceCents: number | null
-  maxPriceCents: number | null
-  platforms: string | null
-  createdAt: Date
-  userEmail: string | null
-}
+import { getAllSearchLogs } from "@/lib/admin"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminSearchesPage() {
-  if (!db) {
-    return (
-      <div className="text-center py-20 text-ink-muted font-mono">
-        Database non disponibile
-      </div>
-    )
-  }
-
-  // Last 500 searches (all users + anonymous)
-  const logs: SearchLogWithUser[] = await db
-    .select({
-      id: searchLogs.id,
-      userId: searchLogs.userId,
-      sessionId: searchLogs.sessionId,
-      userIp: searchLogs.userIp,
-      query: searchLogs.query,
-      vertical: searchLogs.vertical,
-      minPriceCents: searchLogs.minPriceCents,
-      maxPriceCents: searchLogs.maxPriceCents,
-      platforms: searchLogs.platforms,
-      createdAt: searchLogs.createdAt,
-      userEmail: users.email,
-    })
-    .from(searchLogs)
-    .leftJoin(users, eq(searchLogs.userId, users.id))
-    .orderBy(desc(searchLogs.createdAt))
-    .limit(500)
+  // Last 500 searches (all users + anonymous) via Supabase Client (HTTPS)
+  const logs = await getAllSearchLogs(500)
 
   return (
     <div className="space-y-8">
@@ -63,7 +22,8 @@ export default async function AdminSearchesPage() {
         </p>
       </div>
 
-      <div className="border-2 border-ink bg-surface overflow-x-auto">
+      {/* Desktop View: Table */}
+      <div className="hidden lg:block border-2 border-ink bg-surface overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-ink bg-ink text-paper">
@@ -95,7 +55,7 @@ export default async function AdminSearchesPage() {
                 Marketplace
               </th>
               <th className="text-left font-mono text-[10px] uppercase tracking-widest px-4 py-3 whitespace-nowrap">
-                <MapPin size={12} className="inline mr-1 -mt-0.5" />
+                <MapPin size={12} className="inline mr-1.5 -mt-0.5" />
                 IP
               </th>
             </tr>
@@ -152,7 +112,7 @@ export default async function AdminSearchesPage() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1 max-w-[200px]">
                     {log.platforms ? (
-                      log.platforms.split(",").map((p) => (
+                      log.platforms.split(",").map((p: string) => (
                         <span key={p} className="font-mono text-[8px] uppercase tracking-tighter bg-ink/5 border border-ink/10 px-1 py-0.5 rounded-sm">
                           {p}
                         </span>
@@ -169,6 +129,68 @@ export default async function AdminSearchesPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile View: Cards */}
+      <div className="lg:hidden space-y-4">
+        {logs.map((log) => (
+          <div key={log.id} className="border-2 border-ink bg-surface p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-ink-muted">
+                  {formatDate(log.createdAt)}
+                </div>
+                <div className="font-bold text-base leading-tight">"{log.query}"</div>
+              </div>
+              <VerticalBadge vertical={log.vertical} />
+            </div>
+
+            <div className="flex items-center gap-2 py-2 border-t border-line">
+              <User size={10} className="text-ink-muted" />
+              <div className="font-mono text-[10px] truncate">
+                {log.userId && log.userEmail ? (
+                  <Link href={`/admin/users/${log.userId}`} className="text-deal font-bold">
+                    {log.userEmail}
+                  </Link>
+                ) : (
+                  <span className="text-ink-faint italic">Utente anonimo</span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 bg-paper-deep p-2 border-2 border-ink/5">
+              <div className="space-y-0.5">
+                <div className="font-mono text-[8px] uppercase tracking-widest text-ink-muted">Range Min</div>
+                <div className="font-mono text-[11px] font-bold text-deal">
+                  {log.minPriceCents != null ? `€${(log.minPriceCents / 100).toFixed(2)}` : "—"}
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="font-mono text-[8px] uppercase tracking-widest text-ink-muted">Range Max</div>
+                <div className="font-mono text-[11px] font-bold text-bin">
+                  {log.maxPriceCents != null ? `€${(log.maxPriceCents / 100).toFixed(2)}` : "—"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {log.platforms ? (
+                log.platforms.split(",").map((p: string) => (
+                  <span key={p} className="font-mono text-[8px] uppercase tracking-tighter border border-ink/10 px-1 py-0.5 rounded-sm bg-white">
+                    {p}
+                  </span>
+                ))
+              ) : (
+                <span className="text-ink-faint text-[9px] italic font-mono">Tutti i marketplace</span>
+              )}
+            </div>
+          </div>
+        ))}
+        {logs.length === 0 && (
+          <div className="p-10 text-center text-ink-muted font-mono text-[12px] border-2 border-ink border-dashed">
+            Nessun log di ricerca trovato
+          </div>
+        )}
       </div>
     </div>
   )

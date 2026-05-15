@@ -1,10 +1,12 @@
 "use client"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Menu, X, ArrowRight, User } from "lucide-react"
+import { Menu, X, ArrowRight, User, Bell, LogOut, Settings } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Logo } from "@/components/logo"
 import { cn } from "@/lib/cn"
+import { getUserRole } from "@/app/auth/actions"
+import { UpgradeButton } from "@/components/upgrade-button"
 
 interface Props {
   className?: string
@@ -14,27 +16,51 @@ interface Props {
 export function Nav({ className, compact }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    const checkAdmin = async (u: any) => {
+      if (!u) {
+        setIsAdmin(false)
+        return
+      }
+      
+      const metaRole = u.app_metadata?.role || u.user_metadata?.role
+      if (metaRole === "admin") {
+        setIsAdmin(true)
+        return
+      }
+
+      try {
+        const role = await getUserRole()
+        setIsAdmin(role === "admin")
+      } catch (err) {
+        setIsAdmin(false)
+      }
+    }
+
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       setIsLoaded(true)
+      await checkAdmin(user)
     }
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null
+      setUser(u)
       setIsLoaded(true)
+      await checkAdmin(u)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
   const handleSignIn = () => {
-    // Redirect to a dedicated login page since we need email/pass fields
     window.location.href = "/login"
   }
 
@@ -43,7 +69,6 @@ export function Nav({ className, compact }: Props) {
     window.location.reload()
   }
 
-  // Block scroll when menu is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden"
@@ -54,6 +79,20 @@ export function Nav({ className, compact }: Props) {
       document.body.style.overflow = "unset"
     }
   }, [isOpen])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest(".user-menu-container")) {
+        setIsUserMenuOpen(false)
+      }
+    }
+
+    if (isUserMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isUserMenuOpen])
 
   return (
     <>
@@ -76,7 +115,6 @@ export function Nav({ className, compact }: Props) {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 font-mono text-[11px] uppercase tracking-widest font-bold">
             <NavLink href="/search?v=pokemon">Pokémon</NavLink>
             <NavLink href="/search?v=coins">Monete</NavLink>
@@ -94,22 +132,72 @@ export function Nav({ className, compact }: Props) {
             {isLoaded && user && (
               <div className="flex items-center gap-6">
                 <Link href="/#pricing" className="text-ink-muted hover:text-ink transition-colors">Piani</Link>
-                <button 
-                  onClick={handleSignOut}
-                  className="size-8 rounded-full border-2 border-ink overflow-hidden bg-surface flex items-center justify-center hover:bg-paper-deep transition-colors"
-                  title="Logout"
-                >
-                  {user.user_metadata?.avatar_url ? (
-                    <img src={user.user_metadata.avatar_url} alt="User" className="size-full object-cover" />
-                  ) : (
-                    <User size={16} />
+                {isAdmin && (
+                  <Link 
+                    href="/admin" 
+                    className="border-2 border-ink px-3 py-1.5 hover:bg-ink hover:text-paper transition-all text-[10px] font-bold"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                <div className="relative user-menu-container">
+                  <button 
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className={cn(
+                      "size-8 rounded-full border-2 border-ink overflow-hidden bg-surface flex items-center justify-center hover:bg-paper-deep transition-colors",
+                      isUserMenuOpen && "bg-paper-deep ring-2 ring-deal ring-offset-2 ring-offset-paper"
+                    )}
+                    title="Menu utente"
+                  >
+                    {user.user_metadata?.avatar_url ? (
+                      <img src={user.user_metadata.avatar_url} alt="User" className="size-full object-cover" />
+                    ) : (
+                      <User size={16} />
+                    )}
+                  </button>
+
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 top-full mt-3 w-48 bg-paper border-2 border-ink shadow-[4px_4px_0_var(--ink)] py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="px-4 py-2 border-b-2 border-line mb-2">
+                        <p className="font-mono text-[9px] uppercase tracking-widest text-ink-muted truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                      
+                      <Link 
+                        href="/dashboard/profile" 
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-deal/10 font-mono text-[10px] uppercase tracking-widest font-bold transition-colors"
+                      >
+                        <User size={14} className="text-ink-muted" />
+                        Profilo
+                      </Link>
+
+                      <Link 
+                        href="/dashboard/alerts" 
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-deal/10 font-mono text-[10px] uppercase tracking-widest font-bold transition-colors"
+                      >
+                        <Bell size={14} className="text-ink-muted" />
+                        I Miei Alert
+                      </Link>
+
+                      <div className="h-[2px] bg-line my-2" />
+
+                      <button 
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-hot/10 text-hot font-mono text-[10px] uppercase tracking-widest font-bold transition-colors text-left"
+                      >
+                        <LogOut size={14} />
+                        Logout
+                      </button>
+                    </div>
                   )}
-                </button>
+                </div>
               </div>
             )}
           </nav>
 
-          {/* Mobile Toggle */}
           <button
             type="button"
             className="md:hidden p-2 -mr-2 text-ink z-50"
@@ -121,7 +209,6 @@ export function Nav({ className, compact }: Props) {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-[999] bg-paper flex flex-col animate-in fade-in duration-200">
           <div className="flex items-center justify-between h-[64px] px-5 border-b-2 border-ink">
@@ -142,7 +229,6 @@ export function Nav({ className, compact }: Props) {
           </div>
 
           <div className="flex flex-col flex-1 p-6 sm:p-8 overflow-y-auto">
-            {/* User status in mobile menu */}
             {isLoaded && (
               <div className="mb-10 p-4 border-2 border-ink bg-surface flex items-center justify-between">
                 {!user ? (
@@ -164,12 +250,23 @@ export function Nav({ className, compact }: Props) {
                       <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Account</span>
                       <span className="display text-xl font-bold">Attivo</span>
                     </div>
-                    <button 
-                      onClick={handleSignOut}
-                      className="p-2 border-2 border-ink hover:bg-paper-deep transition-colors"
-                    >
-                      Logout
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <Link 
+                          href="/admin"
+                          onClick={() => setIsOpen(false)}
+                          className="bg-ink text-paper px-3 py-2 font-mono text-[10px] uppercase tracking-widest font-bold"
+                        >
+                          Dashboard
+                        </Link>
+                      )}
+                      <button 
+                        onClick={handleSignOut}
+                        className="p-2 border-2 border-ink hover:bg-paper-deep transition-colors font-mono text-[10px] uppercase font-bold"
+                      >
+                        Logout
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -203,14 +300,10 @@ export function Nav({ className, compact }: Props) {
             </nav>
 
             <div className="mt-auto pt-8 border-t-2 border-line">
-              <Link
-                href="/#pricing"
-                onClick={() => setIsOpen(false)}
-                className="w-full bg-deal text-paper py-4 px-6 font-mono font-bold uppercase tracking-widest flex items-center justify-between shadow-[4px_4px_0_var(--deal-deep)]"
-              >
-                <span>Abbonati a Pro</span>
-                <ArrowRight size={18} />
-              </Link>
+              <UpgradeButton 
+                label="Abbonati a Pro"
+                className="w-full py-4 px-6 shadow-[4px_4px_0_var(--deal-deep)]"
+              />
               
               <div className="mt-6 grid grid-cols-2 gap-4 text-[11px] font-mono uppercase tracking-widest text-ink-muted">
                 <Link href="/#how" onClick={() => setIsOpen(false)}>Come funziona</Link>

@@ -58,7 +58,7 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-[84px_1fr] xs:grid-cols-[100px_1fr] sm:flex sm:gap-0">
+      <div className="grid grid-cols-[84px_1fr] xs:grid-cols-[100px_1fr] sm:flex sm:gap-0 min-w-0 overflow-hidden">
         {/* thumbnail */}
         <div
           className={cn(
@@ -91,7 +91,7 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
           <div className="flex flex-col xs:flex-row items-start justify-between gap-2 xs:gap-3">
             <h3
               className={cn(
-                "display font-bold leading-[1.1] tracking-tightest line-clamp-2 order-2 xs:order-1",
+                "display font-bold leading-[1.1] tracking-tightest line-clamp-2 order-2 xs:order-1 break-words",
                 variant === "full" ? "text-[15px] xs:text-base sm:text-xl" : "text-sm",
               )}
             >
@@ -186,7 +186,7 @@ export function ListingCard({ listing, index, variant = "full" }: Props) {
               className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-deal transition-colors inline-flex items-center gap-1 before:absolute before:inset-0"
             >
               Vedi annuncio
-              <span className="hidden xs:inline">su {platformLabel}</span>
+              <span className="hidden sm:inline">su {platformLabel}</span>
               <span aria-hidden>↗</span>
             </a>
           </div>
